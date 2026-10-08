@@ -1,5 +1,6 @@
 // End-to-end test: loads the extension into Chromium, captures the pages in
-// tests/pages and checks every row of the stitched screenshots.
+// tests/pages (full page and selected areas) and checks every row of the
+// screenshots.
 //
 //   npm test             (headless)
 //   HEADED=1 npm test    (watch it run)
@@ -113,7 +114,110 @@ const tests = [
       await result.locator('#error-view[data-error="restricted"]').waitFor();
     },
   },
+  {
+    name: 'full page capture takes down an open area selection',
+    page: 'long.html',
+    async before(page, browser) {
+      await tests[0].before(page);
+      await startCapture(browser, page, 'area');
+    },
+    check: (args) => tests[0].check(args),
+  },
+  {
+    name: 'area selected from the popup',
+    page: 'long.html',
+    mode: 'area',
+    viaPopup: true,
+    async before(page) {
+      await page.evaluate(() => window.scrollTo({ top: 1000, behavior: 'instant' }));
+    },
+    // From the bottom right to the top left, so the box has to be flipped.
+    select: (page) => drag(page, { x: 640, y: 500 }, { x: 40, y: 150 }),
+    async check({ image, page, result, scale }) {
+      assert.equal(image.width, 600 * scale, 'image is as wide as the selection');
+      assert.equal(image.height, 350 * scale, 'image is as tall as the selection');
+      for (const column of image.columns) checkColumn(column, scale, (y) => bandColor(Math.floor((1150 + y) / 250)));
+
+      const after = await page.evaluate(() => ({
+        scrollY,
+        overlay: Boolean(document.querySelector('holien-area-select')),
+      }));
+      assert.equal(after.scrollY, 1000, 'the page did not scroll');
+      assert.equal(after.overlay, false, 'the selection overlay is gone');
+      const title = await result.evaluate(() => chrome.i18n.getMessage('areaResultTitle'));
+      assert.ok((await result.title()).endsWith(title), 'result page is titled as an area screenshot');
+      await checkCopy(result, image);
+    },
+  },
+  {
+    name: 'area selection is cancelled with Esc',
+    page: 'long.html',
+    mode: 'area',
+    noResult: true,
+    async before(page) {
+      await page.evaluate(() => {
+        window.keysSeen = 0;
+        addEventListener('keydown', () => window.keysSeen++);
+        // Focus starts in an iframe, which Esc only gets out of if the selection takes the focus.
+        const frame = document.body.appendChild(document.createElement('iframe'));
+        frame.srcdoc = '<input>';
+        return new Promise((resolve) => (frame.onload = resolve));
+      });
+      await page.frameLocator('iframe').locator('input').focus();
+    },
+    async select(page) {
+      const overlay = page.locator('holien-area-select');
+      await overlay.waitFor({ state: 'attached' });
+      // A click isn't a selection.
+      await page.mouse.click(300, 300);
+      assert.equal(await overlay.count(), 1, 'a click leaves the overlay up');
+      await page.keyboard.press('Escape');
+    },
+    async check({ context, page }) {
+      await page.locator('holien-area-select').waitFor({ state: 'detached' });
+      await sleep(1000);
+      const results = context.pages().filter((p) => p.url().includes('/result/result.html'));
+      assert.equal(results.length, 0, 'no screenshot was taken');
+      assert.equal(await page.evaluate(() => window.keysSeen), 0, 'keys did not reach the page');
+      const focused = await page.evaluate(() => document.activeElement.tagName);
+      assert.equal(focused, 'IFRAME', 'focus is back in the iframe');
+    },
+  },
+  {
+    name: 'area selection on browser pages shows an error',
+    page: 'chrome://version',
+    mode: 'area',
+    scales: [1],
+    async check({ result }) {
+      await result.locator('#error-view[data-error="restricted"]').waitFor();
+    },
+  },
 ];
+
+async function drag(page, from, to) {
+  await page.locator('holien-area-select').waitFor({ state: 'attached' });
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 5 });
+  await page.mouse.up();
+}
+
+// Copies the screenshot with the result page's button and reads it back.
+async function checkCopy(result, image) {
+  const copied = await result.evaluate(() => chrome.i18n.getMessage('copied'));
+  await result.click('#copy');
+  await result.locator('#copy', { hasText: copied }).waitFor();
+  const size = await result.evaluate(async () => {
+    const [item] = await navigator.clipboard.read();
+    const bitmap = await createImageBitmap(await item.getType('image/png'));
+    return { width: bitmap.width, height: bitmap.height };
+  });
+  assert.deepEqual(size, { width: image.width, height: image.height }, 'the screenshot is on the clipboard');
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function checkStoppedAtLimit({ image, page, result, scale }, noticeKey) {
   const viewport = await page.evaluate(() => innerHeight);
@@ -181,7 +285,8 @@ async function main() {
   process.exitCode = failures ? 1 : 0;
 }
 
-async function runTest({ context, worker }, test, scale, baseUrl) {
+async function runTest(browser, test, scale, baseUrl) {
+  const { context } = browser;
   const page = await context.newPage();
   const result = await (async () => {
     await page.goto(test.page.includes(':') ? test.page : baseUrl + test.page);
@@ -192,17 +297,16 @@ async function runTest({ context, worker }, test, scale, baseUrl) {
         setTimeout(() => resolve(innerHeight === height), 300);
       }),
     );
-    await test.before?.(page);
-    await page.bringToFront();
-    const opened = context.waitForEvent('page', {
-      predicate: (p) => p.url().includes('/result/result.html'),
-      timeout: 120_000,
-    });
-    // Same as clicking the toolbar button on this tab.
-    await worker.evaluate(async (url) => {
-      const tab = (await chrome.tabs.query({})).find((t) => t.url === url);
-      await globalThis.__holienHandleClick(tab);
-    }, page.url());
+    await test.before?.(page, browser);
+    const opened = test.noResult
+      ? null
+      : context.waitForEvent('page', {
+          predicate: (p) => p.url().includes('/result/result.html'),
+          timeout: 120_000,
+        });
+    await startCapture(browser, page, test.mode ?? 'full', test.viaPopup);
+    await test.select?.(page);
+    if (!opened) return null;
     const result = await opened;
     await result.waitForSelector('body[data-state="ready"]');
     return result;
@@ -210,18 +314,49 @@ async function runTest({ context, worker }, test, scale, baseUrl) {
 
   try {
     let image;
-    if (await result.locator('#capture-view').isVisible()) {
+    if (await result?.locator('#capture-view').isVisible()) {
       image = await readImage(result, test.columns ?? ((width) => [10, Math.floor(width / 2), width - 2]), scale);
-      const name = `${path.basename(test.page, '.html')}@${scale}x`;
+      const name = `${path.basename(test.page, '.html')}${test.mode === 'area' ? '-area' : ''}@${scale}x`;
       for (const [i, png] of image.pngs.entries()) {
         await fs.writeFile(path.join(OUT_DIR, `${name}_${i + 1}.png`), Buffer.from(png, 'base64'));
       }
       await result.screenshot({ path: path.join(OUT_DIR, `${name}_result-page.png`) });
     }
-    await test.check({ image, page, result, scale });
+    await test.check({ context, image, page, result, scale });
   } finally {
-    await result.close();
+    await result?.close();
     await page.close();
+  }
+}
+
+// Same as picking a mode in the toolbar popup on the page's tab.
+async function startCapture({ context, worker, extensionId }, page, mode, viaPopup) {
+  if (!viaPopup) {
+    await page.bringToFront();
+    await worker.evaluate(
+      async ([url, mode]) => {
+        const tab = (await chrome.tabs.query({})).find((t) => t.url === url);
+        await globalThis.__holienStartCapture(tab, mode);
+      },
+      [page.url(), mode],
+    );
+    return;
+  }
+  // The real popup opens over the page. Here it's a tab of its own, so it's
+  // pointed at the page's tab, and the page is brought back to the front.
+  const popup = await context.newPage();
+  try {
+    await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+    await popup.evaluate((url) => {
+      const query = chrome.tabs.query.bind(chrome.tabs);
+      chrome.tabs.query = async () => (await query({})).filter((t) => t.url === url);
+    }, page.url());
+    const closed = popup.waitForEvent('close');
+    await page.bringToFront();
+    await popup.evaluate((mode) => document.querySelector(`button[data-mode="${mode}"]`).click(), mode);
+    await closed;
+  } finally {
+    if (!popup.isClosed()) await popup.close();
   }
 }
 
@@ -268,14 +403,15 @@ async function readImage(result, columnsFor, scale) {
 
 // A copy of the extension the test can drive. Tests can't click the toolbar
 // button (which is what grants activeTab), so this copy gets host access
-// instead and exposes the click handler. It also splits images sooner.
+// instead and exposes the capture entry point. It also splits images sooner.
 async function buildTestExtension() {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'holien-extension-'));
   await fs.cp(path.join(ROOT, 'extension'), dir, { recursive: true });
 
   const manifestPath = path.join(dir, 'manifest.json');
   const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
-  manifest.permissions.push('tabs');
+  // clipboardRead lets the test read back what the Copy button wrote.
+  manifest.permissions.push('tabs', 'clipboardRead');
   manifest.host_permissions = ['<all_urls>'];
   await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
 
@@ -286,7 +422,7 @@ async function buildTestExtension() {
     `const MAX_PART_HEIGHT = ${TEST_MAX_PART_HEIGHT};`,
   );
   assert.notEqual(patched, background, 'MAX_PART_HEIGHT not found in background.js');
-  await fs.writeFile(backgroundPath, `${patched}\nglobalThis.__holienHandleClick = handleClick;\n`);
+  await fs.writeFile(backgroundPath, `${patched}\nglobalThis.__holienStartCapture = startCapture;\n`);
   return dir;
 }
 
@@ -303,7 +439,7 @@ async function launch(extensionDir, scale) {
     ],
   });
   const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
-  return { context, worker };
+  return { context, worker, extensionId: new URL(worker.url()).host };
 }
 
 function serve(dir) {

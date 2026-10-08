@@ -12,9 +12,20 @@
   },
   "action": {
     "default_title": "__MSG_actionTitle__",
+    "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png"
+    }
+  },
+  "commands": {
+    "capture-full-page": {
+      "suggested_key": { "default": "Alt+Shift+F" },
+      "description": "__MSG_commandFullPage__"
+    },
+    "capture-area": {
+      "suggested_key": { "default": "Alt+Shift+S" },
+      "description": "__MSG_commandArea__"
     }
   },
   "background": {

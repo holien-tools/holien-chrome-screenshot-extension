@@ -3,13 +3,31 @@
     "message": "整頁截圖"
   },
   "extDescription": {
-    "message": "一鍵擷取整個網頁（包含需要捲動的部分）成圖片，並下載到電腦。"
+    "message": "擷取整個網頁（包含需要捲動的部分）或框選的範圍成圖片，下載到電腦或複製使用。"
   },
   "actionTitle": {
+    "message": "擷取整頁或框選範圍"
+  },
+  "popupFullPage": {
+    "message": "擷取整頁"
+  },
+  "popupArea": {
+    "message": "框選範圍"
+  },
+  "commandFullPage": {
     "message": "擷取整個網頁"
+  },
+  "commandArea": {
+    "message": "框選範圍擷取"
+  },
+  "areaHint": {
+    "message": "拖曳滑鼠框選要擷取的範圍，按 Esc 取消"
   },
   "resultTitle": {
     "message": "整頁截圖"
+  },
+  "areaResultTitle": {
+    "message": "框選截圖"
   },
   "summary": {
     "message": "$WIDTH$ × $HEIGHT$ 像素 · 擷取於 $TIME$",
@@ -28,6 +46,15 @@
   },
   "download": {
     "message": "下載 PNG"
+  },
+  "copy": {
+    "message": "複製"
+  },
+  "copied": {
+    "message": "已複製"
+  },
+  "copyFailed": {
+    "message": "無法複製"
   },
   "downloadAll": {
     "message": "全部下載（$COUNT$ 個檔案）",
