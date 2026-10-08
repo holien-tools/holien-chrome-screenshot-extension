@@ -1,12 +1,13 @@
 import { saveCapture } from './lib/store.js';
 
 const HELPER_FILE = 'content/capture-helper.js';
+const AREA_SELECT_FILE = 'content/area-select.js';
 // chrome.tabs.captureVisibleTab is limited to 2 calls per second.
 const MIN_CAPTURE_INTERVAL_MS = 550;
 // Most screens per capture, for every page: pages that keep loading more
 // content as they're scrolled (infinite scroll) never end, and very long pages
 // would take a long time.
-const MAX_FRAMES = 10;
+const MAX_FRAMES = 50;
 // Tallest image (device pixels) per file. Taller pages are split into parts
 // to stay well inside Chrome's canvas size and memory limits.
 const MAX_PART_HEIGHT = 16384;
@@ -21,9 +22,27 @@ class CaptureError extends Error {
   }
 }
 
-chrome.action.onClicked.addListener(handleClick);
+const COMMAND_MODES = { 'capture-full-page': 'full', 'capture-area': 'area' };
 
-async function handleClick(tab) {
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (tab && command in COMMAND_MODES) startCapture(tab, COMMAND_MODES[command]);
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'capture') {
+    // From the popup, which closes as soon as it hears back.
+    chrome.tabs.get(message.tabId).then((tab) => startCapture(tab, message.mode));
+  } else if (message.type === 'areaSelected' && sender.tab) {
+    saveArea(sender.tab, message);
+  }
+  sendResponse(true);
+});
+
+function startCapture(tab, mode) {
+  return mode === 'area' ? selectArea(tab) : captureFullPage(tab);
+}
+
+async function captureFullPage(tab) {
   if (busyTabs.has(tab.id)) return;
   busyTabs.add(tab.id);
   try {
@@ -35,6 +54,47 @@ async function handleClick(tab) {
   } finally {
     busyTabs.delete(tab.id);
     await setBadge(tab.id, '');
+  }
+}
+
+// Freezes the visible part of the page and lets the user drag out the area to
+// keep. The page sends the area back in an 'areaSelected' message, together
+// with the screenshot, since this worker may be stopped while the user decides.
+async function selectArea(tab) {
+  if (busyTabs.has(tab.id)) return;
+  try {
+    try {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [AREA_SELECT_FILE] });
+    } catch (err) {
+      throw new CaptureError('restricted', err.message);
+    }
+    const image = await captureVisible(tab);
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: (image) => window.__holienAreaSelect?.start(image),
+      args: [image],
+    });
+  } catch (err) {
+    console.error('Area capture failed:', err);
+    await openResult(tab, { error: err.code || 'failed', detail: err.message });
+  }
+}
+
+async function saveArea(tab, { image, rect, viewportWidth, title, url }) {
+  try {
+    const id = await saveCapture({
+      mode: 'area',
+      title,
+      url,
+      createdAt: Date.now(),
+      screens: 1,
+      stoppedEarly: null,
+      ...(await crop(image, rect, viewportWidth)),
+    });
+    await openResult(tab, { id });
+  } catch (err) {
+    console.error('Area capture failed:', err);
+    await openResult(tab, { error: 'failed', detail: err.message });
   }
 }
 
@@ -58,6 +118,7 @@ async function captureTab(tab) {
   await setBadge(tab.id, '…');
   const image = await stitch(capture.frames);
   return saveCapture({
+    mode: 'full',
     title: page.title,
     url: page.url,
     createdAt: Date.now(),
@@ -173,6 +234,21 @@ async function stitch(frames) {
     });
   }
   return { width, height, parts };
+}
+
+// Cuts the selected area (CSS pixels) out of a screenshot of the visible page.
+async function crop(dataUrl, rect, viewportWidth) {
+  const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
+  const scale = bitmap.width / viewportWidth;
+  const sx = Math.round(rect.x * scale);
+  const sy = Math.round(rect.y * scale);
+  const width = Math.min(Math.round((rect.x + rect.width) * scale), bitmap.width) - sx;
+  const height = Math.min(Math.round((rect.y + rect.height) * scale), bitmap.height) - sy;
+  const canvas = new OffscreenCanvas(width, height);
+  canvas.getContext('2d').drawImage(bitmap, sx, sy, width, height, 0, 0, width, height);
+  bitmap.close();
+  const blob = await canvas.convertToBlob({ type: 'image/png' });
+  return { width, height, parts: [{ blob, width, height }] };
 }
 
 async function callHelper(tabId, method, arg = null) {

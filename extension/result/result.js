@@ -36,7 +36,7 @@ async function main() {
 
 function showCapture(capture) {
   const name = capture.title || capture.url;
-  document.title = `${name} – ${msg('resultTitle')}`;
+  document.title = `${name} – ${msg(capture.mode === 'area' ? 'areaResultTitle' : 'resultTitle')}`;
   $('#page-title').textContent = name;
   const link = $('#page-url');
   link.textContent = capture.url;
@@ -71,6 +71,7 @@ function showCapture(capture) {
     button.href = downloads[0].url;
     button.download = downloads[0].fileName;
     button.hidden = false;
+    setUpCopy($('#copy'), capture.parts[0].blob);
   } else {
     const button = $('#download-all');
     button.textContent = msg('downloadAll', total);
@@ -87,12 +88,14 @@ function renderPart(part, url, fileName, index, total) {
     const caption = document.createElement('figcaption');
     const label = document.createElement('span');
     label.textContent = `${msg('partLabel', index + 1, total)} · ${msg('size', part.width, part.height)}`;
+    const copy = Object.assign(document.createElement('button'), { type: 'button', className: 'link' });
+    setUpCopy(copy, part.blob);
     const link = Object.assign(document.createElement('a'), {
       href: url,
       download: fileName,
       textContent: msg('download'),
     });
-    caption.append(label, link);
+    caption.append(label, copy, link);
     figure.append(caption);
   }
   const img = Object.assign(document.createElement('img'), { src: url, alt: fileName });
@@ -101,6 +104,23 @@ function renderPart(part, url, fileName, index, total) {
   img.height = part.height;
   figure.append(img);
   return figure;
+}
+
+function setUpCopy(button, blob) {
+  button.textContent = msg('copy');
+  button.hidden = false;
+  let timer;
+  button.addEventListener('click', async () => {
+    clearTimeout(timer);
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      button.textContent = msg('copied');
+    } catch (err) {
+      console.error('Copy failed:', err);
+      button.textContent = msg('copyFailed');
+    }
+    timer = setTimeout(() => (button.textContent = msg('copy')), 2000);
+  });
 }
 
 async function downloadAll(downloads) {

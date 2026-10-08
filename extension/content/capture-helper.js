@@ -101,6 +101,8 @@
 
   function prepare() {
     if (state) restore();
+    // An area selection still on screen would end up in the screenshots.
+    window.__holienAreaSelect?.cancel();
     state = { overrides: [], fixed: [], target: null, scrollX, scrollY, targetScrollTop: 0 };
 
     // Jump instead of animating when scrolling, and keep scrollbars out of the picture.

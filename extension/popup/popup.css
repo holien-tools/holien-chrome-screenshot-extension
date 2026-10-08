@@ -1,0 +1,75 @@
+:root {
+  --bg: #ffffff;
+  --text: #1f2328;
+  --muted: #59636e;
+  --border: #d1d9e0;
+  --hover: #eef0f3;
+  --accent: #2563eb;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161b22;
+    --text: #e6edf3;
+    --muted: #9198a1;
+    --border: #3d444d;
+    --hover: #262c36;
+    --accent: #3b82f6;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 240px;
+  margin: 0;
+  padding: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei',
+    'Noto Sans TC', sans-serif;
+}
+
+.mode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.mode:hover,
+.mode:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+
+.mode svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mode span {
+  flex: 1;
+}
+
+.mode kbd {
+  color: var(--muted);
+  font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}

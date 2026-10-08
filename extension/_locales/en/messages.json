@@ -3,13 +3,31 @@
     "message": "Full Page Screenshot"
   },
   "extDescription": {
-    "message": "Capture an entire web page, scrolling included, as an image with one click and download it."
+    "message": "Capture an entire web page, scrolling included, or an area you select as an image, then download or copy it."
   },
   "actionTitle": {
+    "message": "Capture the full page or a selected area"
+  },
+  "popupFullPage": {
+    "message": "Full page"
+  },
+  "popupArea": {
+    "message": "Select area"
+  },
+  "commandFullPage": {
     "message": "Capture the full page"
+  },
+  "commandArea": {
+    "message": "Select an area to capture"
+  },
+  "areaHint": {
+    "message": "Drag to select an area. Press Esc to cancel."
   },
   "resultTitle": {
     "message": "Full page screenshot"
+  },
+  "areaResultTitle": {
+    "message": "Area screenshot"
   },
   "summary": {
     "message": "$WIDTH$ × $HEIGHT$ px · captured $TIME$",
@@ -28,6 +46,15 @@
   },
   "download": {
     "message": "Download PNG"
+  },
+  "copy": {
+    "message": "Copy"
+  },
+  "copied": {
+    "message": "Copied"
+  },
+  "copyFailed": {
+    "message": "Couldn't copy"
   },
   "downloadAll": {
     "message": "Download all ($COUNT$ files)",
