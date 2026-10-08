@@ -92,13 +92,28 @@ const tests = [
     },
   },
   {
-    name: 'infinite scroll stops at what was loaded when capture started',
+    name: 'infinite scroll stops after 10 screens',
     page: 'infinite.html',
-    async check({ image, result, scale }) {
-      assert.equal(image.height, 2500 * scale, 'image is as tall as the first 10 bands');
+    async check({ image, page, result, scale }) {
+      const viewport = await page.evaluate(() => innerHeight);
+      assert.equal(image.height, 10 * viewport * scale, 'image holds 10 screens');
       const notices = await result.locator('#notices li').allTextContents();
-      assert.equal(notices.length, 1, 'notice that the page loaded more content');
+      assert.equal(notices.length, 1);
+      assert.match(notices[0], /\b10\b/);
       for (const column of image.columns) checkColumn(column, scale, (y) => bandColor(Math.floor(y / 250)));
+    },
+  },
+  {
+    name: 'infinite scroll still captures everything loaded before the click',
+    page: 'infinite.html?initial=40',
+    output: 'infinite-preloaded',
+    scales: [1],
+    async check({ image, page }) {
+      // 40 bands of 250px were loaded at the start: more than 10 screens.
+      const viewport = await page.evaluate(() => innerHeight);
+      assert.ok(image.height >= 10000, `image covers the 10000px loaded at the start (got ${image.height})`);
+      assert.ok(image.height < 10000 + viewport, `image stops within a screen of that (got ${image.height})`);
+      checkColumn(image.columns[0], 1, (y) => bandColor(Math.floor(y / 250)));
     },
   },
   {
@@ -209,7 +224,7 @@ async function runTest({ context, worker }, test, scale, baseUrl) {
     let image;
     if (await result.locator('#capture-view').isVisible()) {
       image = await readImage(result, test.columns ?? ((width) => [10, Math.floor(width / 2), width - 2]), scale);
-      const name = `${path.basename(test.page, '.html')}@${scale}x`;
+      const name = `${test.output ?? path.basename(test.page, '.html')}@${scale}x`;
       for (const [i, png] of image.pngs.entries()) {
         await fs.writeFile(path.join(OUT_DIR, `${name}_${i + 1}.png`), Buffer.from(png, 'base64'));
       }

@@ -48,10 +48,13 @@
       "count": { "content": "$1" }
     }
   },
-  "grewNotice": {
-    "message": "這個頁面捲動時會自動載入更多內容（例如無限捲動），所以只擷取了按下按鈕時已載入的部分。想擷取更多內容，請先往下捲動讓它載入，再按一次。"
+  "infiniteScrollNotice": {
+    "message": "這個頁面捲動時會一直載入新內容（例如無限捲動），所以擷取 $COUNT$ 個畫面後就停止了。",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
   },
-  "truncatedNotice": {
+  "tooLongNotice": {
     "message": "這個頁面非常長，只擷取了前 $COUNT$ 個畫面。",
     "placeholders": {
       "count": { "content": "$1" }

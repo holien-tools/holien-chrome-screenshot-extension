@@ -48,10 +48,13 @@
       "count": { "content": "$1" }
     }
   },
-  "grewNotice": {
-    "message": "This page loads more content as you scroll (for example, infinite scroll). Only what was loaded when you clicked was captured. To capture more, scroll down to load it first, then click again."
+  "infiniteScrollNotice": {
+    "message": "This page keeps loading more content as you scroll (for example, infinite scroll), so the capture stopped after $COUNT$ screens.",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
   },
-  "truncatedNotice": {
+  "tooLongNotice": {
     "message": "This page is very long, so only the first $COUNT$ screens were captured.",
     "placeholders": {
       "count": { "content": "$1" }

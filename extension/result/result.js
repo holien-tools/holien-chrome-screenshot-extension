@@ -50,8 +50,8 @@ function showCapture(capture) {
 
   const notices = [];
   if (capture.parts.length > 1) notices.push(msg('splitNotice', capture.parts.length));
-  if (capture.grew) notices.push(msg('grewNotice'));
-  if (capture.truncated) notices.push(msg('truncatedNotice', capture.screens));
+  if (capture.stoppedEarly === 'infiniteScroll') notices.push(msg('infiniteScrollNotice', capture.screens));
+  if (capture.stoppedEarly === 'tooLong') notices.push(msg('tooLongNotice', capture.screens));
   $('#notices').replaceChildren(
     ...notices.map((text) => Object.assign(document.createElement('li'), { textContent: text })),
   );

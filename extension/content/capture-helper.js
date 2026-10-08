@@ -146,8 +146,7 @@
       for (const side of ['top', 'right', 'bottom', 'left']) overrideStyle(el, side, 'auto');
     }
 
-    // Only what is loaded now gets captured. Pages that load more as you
-    // scroll (infinite scroll) would otherwise never end.
+    // Remembered to tell when the page loads more as it's scrolled (infinite scroll).
     state.height = (target || rootScroller()).scrollHeight;
 
     return { title: document.title, url: location.href };
@@ -174,18 +173,18 @@
   async function scrollTo(y) {
     const { target } = state;
     const scroller = target || rootScroller();
-    // Don't scroll past the height the page had when the capture started.
-    const maxPos = () => Math.min(scroller.scrollHeight, state.height) - scroller.clientHeight;
-    const top = Math.min(y, maxPos());
     // 'instant' also cancels a smooth scroll the page may still be running.
-    if (target) target.scrollTo({ top, behavior: 'instant' });
-    else window.scrollTo({ left: state.scrollX, top, behavior: 'instant' });
+    if (target) target.scrollTo({ top: y, behavior: 'instant' });
+    else window.scrollTo({ left: state.scrollX, top: y, behavior: 'instant' });
     await settle();
 
     // Measured on every screen in case the window is resized mid-capture.
     return {
       pos: target ? target.scrollTop : window.scrollY,
-      maxPos: maxPos(),
+      maxPos: scroller.scrollHeight - scroller.clientHeight,
+      // Where the page ended when the capture started, and whether it has
+      // loaded more since.
+      startMaxPos: state.height - scroller.clientHeight,
       grew: scroller.scrollHeight > state.height,
       rect: captureRect(target),
       viewportWidth: innerWidth,

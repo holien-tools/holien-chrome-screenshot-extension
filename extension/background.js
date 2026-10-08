@@ -6,6 +6,10 @@ const MIN_CAPTURE_INTERVAL_MS = 550;
 // Upper bound on screens per capture, so very long pages still finish in
 // reasonable time and memory.
 const MAX_FRAMES = 60;
+// Pages that keep loading more content as they're scrolled (infinite scroll)
+// never end, so they stop after this many screens. Content that was already
+// loaded when the capture started is always captured, though.
+const MAX_INFINITE_SCROLL_FRAMES = 10;
 // Tallest image (device pixels) per file. Taller pages are split into parts
 // to stay well inside Chrome's canvas size and memory limits.
 const MAX_PART_HEIGHT = 16384;
@@ -61,8 +65,7 @@ async function captureTab(tab) {
     url: page.url,
     createdAt: Date.now(),
     screens: capture.frames.length,
-    truncated: capture.truncated,
-    grew: capture.grew,
+    stoppedEarly: capture.stoppedEarly,
     ...image,
   });
 }
@@ -70,23 +73,26 @@ async function captureTab(tab) {
 // Scrolls through the page one screen at a time and captures each screen.
 async function captureFrames(tab) {
   const frames = [];
-  let truncated = false;
+  // Set when the capture stops before the end: 'infiniteScroll' or 'tooLong'.
+  let stoppedEarly = null;
+  // Whether the page has loaded more content while being scrolled.
   let grew = false;
   let lastCaptureAt = 0;
   let y = 0;
   for (;;) {
     const view = await callHelper(tab.id, 'scrollTo', y);
-    // The page loaded more content while being scrolled (infinite scroll).
-    // It's left out: the capture stops at the height the page started with.
     grew ||= view.grew;
     // The page refused to scroll any further.
     if (frames.length && view.pos <= frames.at(-1).pos) break;
 
     const isFirst = frames.length === 0;
     let isLast = view.pos >= view.maxPos - 1;
-    if (!isLast && frames.length + 1 >= MAX_FRAMES) {
-      isLast = true;
-      truncated = true;
+    if (!isLast) {
+      const count = frames.length + 1;
+      const pastStartingEnd = view.pos >= view.startMaxPos - 1;
+      if (grew && pastStartingEnd && count >= MAX_INFINITE_SCROLL_FRAMES) stoppedEarly = 'infiniteScroll';
+      else if (count >= MAX_FRAMES) stoppedEarly = 'tooLong';
+      isLast = stoppedEarly !== null;
     }
     // Fixed headers only belong on the first screen, fixed footers on the last.
     await callHelper(tab.id, 'showFixed', { top: isFirst, bottom: isLast });
@@ -98,11 +104,14 @@ async function captureFrames(tab) {
     frames.push(frame);
     if (isLast) break;
 
-    const progress = (frame.pos + frame.height) / (view.maxPos + frame.height);
+    // An infinite scroll page's end keeps moving, so count screens instead.
+    const progress = grew
+      ? frames.length / MAX_INFINITE_SCROLL_FRAMES
+      : (frame.pos + frame.height) / (view.maxPos + frame.height);
     await setBadge(tab.id, `${Math.min(99, Math.round(progress * 100))}%`);
     y = frame.pos + frame.height;
   }
-  return { frames, truncated, grew };
+  return { frames, stoppedEarly };
 }
 
 // Records which part of a captured screen shows the scrolled content (in CSS
