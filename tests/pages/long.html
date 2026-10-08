@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Long page</title>
+    <style>
+      html { scroll-behavior: smooth; }
+      body { margin: 0; }
+      #header { position: fixed; top: 0; left: 0; right: 0; height: 60px; background: #000; transition: opacity 1s; }
+      #footer { position: fixed; bottom: 0; left: 0; right: 0; height: 40px; background: #f0f; }
+      #sticky { position: sticky; top: 0; height: 50px; background: #0ff; }
+    </style>
+  </head>
+  <body>
+    <div id="header"></div>
+    <div id="content"></div>
+    <div id="footer"></div>
+    <script src="bands.js"></script>
+    <script>
+      // 40 bands of 250px with a 50px sticky bar after band 19: 10050px in total.
+      const content = document.getElementById('content');
+      addBands(content, 0, 20, 250);
+      content.append(Object.assign(document.createElement('div'), { id: 'sticky' }));
+      addBands(content, 20, 20, 250);
+    </script>
+  </body>
+</html>

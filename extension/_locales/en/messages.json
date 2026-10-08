@@ -1,0 +1,78 @@
+{
+  "extName": {
+    "message": "STW Full Page Screenshot"
+  },
+  "extDescription": {
+    "message": "Capture an entire web page, scrolling included, as an image with one click and download it."
+  },
+  "actionTitle": {
+    "message": "Capture the full page"
+  },
+  "resultTitle": {
+    "message": "Full page screenshot"
+  },
+  "summary": {
+    "message": "$WIDTH$ × $HEIGHT$ px · captured $TIME$",
+    "placeholders": {
+      "width": { "content": "$1" },
+      "height": { "content": "$2" },
+      "time": { "content": "$3" }
+    }
+  },
+  "size": {
+    "message": "$WIDTH$ × $HEIGHT$ px",
+    "placeholders": {
+      "width": { "content": "$1" },
+      "height": { "content": "$2" }
+    }
+  },
+  "download": {
+    "message": "Download PNG"
+  },
+  "downloadAll": {
+    "message": "Download all ($COUNT$ files)",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "partLabel": {
+    "message": "Part $INDEX$ of $TOTAL$",
+    "placeholders": {
+      "index": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "splitNotice": {
+    "message": "This page is too tall for a single image, so it was split top to bottom into $COUNT$ images.",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "truncatedNotice": {
+    "message": "The page kept growing while scrolling (for example, infinite scroll), so only the first $COUNT$ screens were captured.",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "errorTitle": {
+    "message": "Couldn't capture this page"
+  },
+  "errorRestricted": {
+    "message": "Chrome doesn't let extensions capture this page. Browser pages (chrome://), the Chrome Web Store and some built-in viewers are protected. For local files, turn on \"Allow access to file URLs\" for this extension on chrome://extensions."
+  },
+  "errorTabHidden": {
+    "message": "The capture stopped because another tab was brought to the front. Stay on the page until the capture finishes, then try again."
+  },
+  "errorNotFound": {
+    "message": "This screenshot is no longer available. Only the $COUNT$ most recent screenshots are kept.",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "errorFailed": {
+    "message": "Something went wrong while capturing the page. Reload the page and try again."
+  },
+  "errorDetails": {
+    "message": "Details"
+  }
+}

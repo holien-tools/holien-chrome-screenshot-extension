@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>App layout</title>
+    <style>
+      /* The window doesn't scroll; <main> does (like Gmail or Notion). */
+      html, body { height: 100%; margin: 0; overflow: hidden; }
+      body { display: flex; flex-direction: column; }
+      header { flex: none; height: 56px; background: #141414; }
+      .layout { flex: 1; display: flex; min-height: 0; }
+      nav { flex: none; width: 200px; background: #c8c8c8; }
+      main { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+      #fab { position: fixed; right: 16px; bottom: 16px; width: 48px; height: 48px; background: #f0f; }
+    </style>
+  </head>
+  <body>
+    <header></header>
+    <div class="layout">
+      <nav></nav>
+      <main></main>
+    </div>
+    <div id="fab"></div>
+    <script src="bands.js"></script>
+    <script>
+      // 30 bands of 300px: 9000px of scrolling content.
+      addBands(document.querySelector('main'), 0, 30, 300);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,78 @@
+{
+  "extName": {
+    "message": "STW 整頁截圖"
+  },
+  "extDescription": {
+    "message": "一鍵擷取整個網頁（包含需要捲動的部分）成圖片，並下載到電腦。"
+  },
+  "actionTitle": {
+    "message": "擷取整個網頁"
+  },
+  "resultTitle": {
+    "message": "整頁截圖"
+  },
+  "summary": {
+    "message": "$WIDTH$ × $HEIGHT$ 像素 · 擷取於 $TIME$",
+    "placeholders": {
+      "width": { "content": "$1" },
+      "height": { "content": "$2" },
+      "time": { "content": "$3" }
+    }
+  },
+  "size": {
+    "message": "$WIDTH$ × $HEIGHT$ 像素",
+    "placeholders": {
+      "width": { "content": "$1" },
+      "height": { "content": "$2" }
+    }
+  },
+  "download": {
+    "message": "下載 PNG"
+  },
+  "downloadAll": {
+    "message": "全部下載（$COUNT$ 個檔案）",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "partLabel": {
+    "message": "第 $INDEX$ 張，共 $TOTAL$ 張",
+    "placeholders": {
+      "index": { "content": "$1" },
+      "total": { "content": "$2" }
+    }
+  },
+  "splitNotice": {
+    "message": "這個頁面太長，無法存成單一張圖片，已由上到下分成 $COUNT$ 張。",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "truncatedNotice": {
+    "message": "這個頁面在捲動時會一直載入新內容（例如無限捲動），所以只擷取了前 $COUNT$ 個畫面。",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "errorTitle": {
+    "message": "無法擷取這個頁面"
+  },
+  "errorRestricted": {
+    "message": "Chrome 不允許擴充功能擷取這個頁面。瀏覽器內建頁面（chrome://）、Chrome 線上應用程式商店和部分內建檢視器都受到保護。如果是本機檔案，請到 chrome://extensions 為這個擴充功能開啟「允許存取檔案網址」。"
+  },
+  "errorTabHidden": {
+    "message": "擷取途中切換到了其他分頁，所以已停止。請停留在要擷取的頁面直到完成，再試一次。"
+  },
+  "errorNotFound": {
+    "message": "這張截圖已經不存在。只會保留最近 $COUNT$ 次的截圖。",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "errorFailed": {
+    "message": "擷取頁面時發生錯誤。請重新整理頁面後再試一次。"
+  },
+  "errorDetails": {
+    "message": "詳細資訊"
+  }
+}
