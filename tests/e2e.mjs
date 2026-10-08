@@ -361,43 +361,47 @@ async function startCapture({ context, worker, extensionId }, page, mode, viaPop
 }
 
 // Reads the screenshot shown on the result page: its size, the files, and the
-// colors of every row in a few pixel columns.
+// colors of every row in a few pixel columns. Parts are decoded one at a time,
+// since Chromium won't keep dozens of large images decoded at once.
 async function readImage(result, columnsFor, scale) {
-  const size = await result.evaluate(async () => {
-    const imgs = [...document.querySelectorAll('img.part-image')];
-    await Promise.all(imgs.map((img) => img.decode()));
-    return { width: imgs[0].naturalWidth };
+  const width = await result.evaluate(async () => {
+    const img = document.querySelector('img.part-image');
+    const bitmap = await createImageBitmap(await (await fetch(img.src)).blob());
+    const { width } = bitmap;
+    bitmap.close();
+    return width;
   });
-  const xs = columnsFor(size.width, scale);
+  const xs = columnsFor(width, scale);
   return result.evaluate(async (xs) => {
-    const imgs = [...document.querySelectorAll('img.part-image')];
     const columns = xs.map((x) => ({ x, values: [] }));
-    const pngs = [];
-    for (const img of imgs) {
-      const canvas = new OffscreenCanvas(img.naturalWidth, img.naturalHeight);
+    const image = { width: 0, height: 0, parts: 0, columns, pngs: [] };
+    for (const img of document.querySelectorAll('img.part-image')) {
+      const blob = await (await fetch(img.src)).blob();
+      const bitmap = await createImageBitmap(blob);
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(bitmap, 0, 0);
       for (const column of columns) {
-        const px = ctx.getImageData(column.x, 0, 1, img.naturalHeight).data;
-        for (let y = 0; y < img.naturalHeight; y++) {
+        const px = ctx.getImageData(column.x, 0, 1, bitmap.height).data;
+        for (let y = 0; y < bitmap.height; y++) {
           column.values.push((px[y * 4] << 16) | (px[y * 4 + 1] << 8) | px[y * 4 + 2]);
         }
       }
-      const blob = await (await fetch(img.src)).blob();
+      image.width = bitmap.width;
+      image.height += bitmap.height;
+      image.parts++;
+      bitmap.close();
+      // Frees the pixels now rather than whenever garbage collection runs.
+      canvas.width = canvas.height = 0;
+
       const bytes = new Uint8Array(await blob.arrayBuffer());
       let binary = '';
       for (let i = 0; i < bytes.length; i += 0x8000) {
         binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
       }
-      pngs.push(btoa(binary));
+      image.pngs.push(btoa(binary));
     }
-    return {
-      width: imgs[0].naturalWidth,
-      height: imgs.reduce((sum, img) => sum + img.naturalHeight, 0),
-      parts: imgs.length,
-      columns,
-      pngs,
-    };
+    return image;
   }, xs);
 }
 

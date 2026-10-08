@@ -7,7 +7,7 @@ const MIN_CAPTURE_INTERVAL_MS = 550;
 // Most screens per capture, for every page: pages that keep loading more
 // content as they're scrolled (infinite scroll) never end, and very long pages
 // would take a long time.
-const MAX_FRAMES = 10;
+const MAX_FRAMES = 50;
 // Tallest image (device pixels) per file. Taller pages are split into parts
 // to stay well inside Chrome's canvas size and memory limits.
 const MAX_PART_HEIGHT = 16384;

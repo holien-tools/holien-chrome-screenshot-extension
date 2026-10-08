@@ -39,20 +39,20 @@ Chrome can only capture what's currently visible, so the extension:
 - **Scrollbars**: temporarily hidden while capturing, so they don't appear in the image.
 - **Lazy-loaded images**: after each scroll, it waits for the images on screen to load (up to 1.5 seconds) before taking the screenshot.
 - **Pages that scroll an inner element**: on some pages (app-style layouts like Gmail or Notion), a section inside the page scrolls rather than the whole window. In that case it automatically finds the main scrolling section and captures its full content.
-- **Pages that load more content as you scroll** (infinite scroll, such as the Yahoo home page or social media feeds): it keeps capturing the newly loaded content, **stopping after at most 10 screens**, and the preview page tells you.
+- **Pages that load more content as you scroll** (infinite scroll, such as the Yahoo home page or social media feeds): it keeps capturing the newly loaded content, **stopping after at most 50 screens**, and the preview page tells you.
 
 When the capture finishes, the scroll position and styles are restored to how they were.
 
 ## Limitations
 
-- **At most 10 screens per full page capture**: infinite scroll pages (such as social media feeds) keep loading new content, and very long regular pages are treated the same way. The capture stops after 10 screens, and the preview page tells you.
-- **Tall images are split into several**: a single image can be at most 16384 pixels tall. On high-resolution displays, 10 screens may exceed that, in which case the capture is split top to bottom into several images, and the preview page lets you download them all at once.
+- **At most 50 screens per full page capture**: infinite scroll pages (such as social media feeds) keep loading new content, and very long regular pages are treated the same way. The capture stops after 50 screens, and the preview page tells you.
+- **Tall images are split into several**: a single image can be at most 16384 pixels tall. Longer captures (more than about 20 screens on a typical display, fewer on high-resolution displays) are split top to bottom into several images, and the preview page lets you download them all at once.
 - **Select area only covers what's on screen**: to select another part, scroll there first, or use a full page capture.
 - **Only page content is captured**: not the browser toolbar, other windows or the desktop.
 - **Pages that can't be captured**: Chrome doesn't let extensions access browser pages starting with `chrome://`, the Chrome Web Store, or some built-in viewers.
 - **Local files** (`file://`): turn on "Allow access to file URLs" in the extension's details on `chrome://extensions`.
 - Only vertical scrolling is captured. If the page also scrolls horizontally, only the currently visible width is captured.
-- Capture speed is limited by Chrome (at most 2 screenshots per second), so each screen takes about 0.5 seconds or more.
+- Capture speed is limited by Chrome (at most 2 screenshots per second), so each screen takes about 0.5 seconds or more, and a full 50 screens takes 30 seconds or more.
 - Only the 3 most recent screenshots are kept, so download them from the preview page promptly.
 
 ## Permissions
