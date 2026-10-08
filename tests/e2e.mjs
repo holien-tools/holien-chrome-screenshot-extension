@@ -14,14 +14,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { MAX_SCREENS } from '../extension/lib/settings.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = path.join(ROOT, 'test-output');
 const WINDOW = { width: 1280, height: 800 };
-// The screen limit in background.js.
-const MAX_FRAMES = Number(
-  /const MAX_FRAMES = (\d+);/.exec(await fs.readFile(path.join(ROOT, 'extension', 'background.js'), 'utf8'))[1],
-);
 // Lowered from the real per-image limit so the test pages get split into parts.
 const TEST_MAX_PART_HEIGHT = 4096;
 
@@ -97,14 +94,15 @@ const tests = [
     },
   },
   {
-    name: 'infinite scroll stops at the screen limit',
+    name: 'infinite scroll stops at the screen limit set in the settings',
     page: 'infinite.html',
-    check: (args) => checkStoppedAtLimit(args, 'infiniteScrollNotice'),
+    settings: { maxScreens: 12 },
+    check: (args) => checkStoppedAtLimit(args, 'infiniteScrollNotice', 12),
   },
   {
-    name: 'very long page stops at the screen limit',
+    name: 'very long page stops at the default screen limit',
     page: 'very-long.html',
-    check: (args) => checkStoppedAtLimit(args, 'tooLongNotice'),
+    check: (args) => checkStoppedAtLimit(args, 'tooLongNotice', MAX_SCREENS.default),
   },
   {
     name: 'browser pages show an error',
@@ -192,6 +190,47 @@ const tests = [
       await result.locator('#error-view[data-error="restricted"]').waitFor();
     },
   },
+  {
+    name: 'settings page saves the screen limit',
+    scales: [1],
+    async run({ context, worker, extensionId }) {
+      const stored = () => worker.evaluate(() => chrome.storage.sync.get('maxScreens'));
+      const popup = await context.newPage();
+      await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+      const opened = context.waitForEvent('page', { predicate: (p) => p.url().includes('/options/options.html') });
+      await popup.evaluate(() => document.querySelector('#settings').click());
+      const options = await opened;
+      try {
+        await options.waitForSelector('body[data-state="ready"]');
+        const input = options.locator('#max-screens');
+        assert.equal(await input.inputValue(), String(MAX_SCREENS.default), 'shows the default');
+
+        for (const bad of ['0', String(MAX_SCREENS.max + 1), '2.5', '']) {
+          await input.fill(bad);
+          await options.locator('#status.error').waitFor();
+          assert.equal(await input.getAttribute('aria-invalid'), 'true', `"${bad}" is marked invalid`);
+        }
+        await sleep(500);
+        assert.deepEqual(await stored(), {}, 'invalid values are not saved');
+
+        await input.fill('12');
+        await options.locator('#status.saved').waitFor();
+        assert.deepEqual(await stored(), { maxScreens: 12 }, 'a valid value is saved');
+        await options.reload();
+        await options.waitForSelector('body[data-state="ready"]');
+        assert.equal(await input.inputValue(), '12', 'the saved value is shown again');
+
+        await options.click('#reset');
+        await options.locator('#status.saved').waitFor();
+        assert.equal(await input.inputValue(), String(MAX_SCREENS.default), 'reset shows the default');
+        assert.deepEqual(await stored(), { maxScreens: MAX_SCREENS.default }, 'reset saves the default');
+      } finally {
+        await options.close();
+        if (!popup.isClosed()) await popup.close();
+        await worker.evaluate(() => chrome.storage.sync.clear());
+      }
+    },
+  },
 ];
 
 async function drag(page, from, to) {
@@ -219,13 +258,13 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function checkStoppedAtLimit({ image, page, result, scale }, noticeKey) {
+async function checkStoppedAtLimit({ image, page, result, scale }, noticeKey, limit) {
   const viewport = await page.evaluate(() => innerHeight);
-  assert.equal(image.height, MAX_FRAMES * viewport * scale, `image holds ${MAX_FRAMES} screens`);
+  assert.equal(image.height, limit * viewport * scale, `image holds ${limit} screens`);
   const notices = await result.locator('#notices li').allTextContents();
   const expected = await result.evaluate(([key, count]) => chrome.i18n.getMessage(key, [count]), [
     noticeKey,
-    String(MAX_FRAMES),
+    String(limit),
   ]);
   assert.ok(notices.includes(expected), `notice "${expected}" in ${JSON.stringify(notices)}`);
   for (const column of image.columns) checkColumn(column, scale, (y) => bandColor(Math.floor(y / 250)));
@@ -266,7 +305,7 @@ async function main() {
           const label = `[${scale}x] ${test.name}`;
           const started = Date.now();
           try {
-            await runTest(browser, test, scale, baseUrl);
+            await (test.run ? test.run(browser) : runTest(browser, test, scale, baseUrl));
             console.log(`ok   ${label} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
           } catch (err) {
             failures++;
@@ -286,7 +325,8 @@ async function main() {
 }
 
 async function runTest(browser, test, scale, baseUrl) {
-  const { context } = browser;
+  const { context, worker } = browser;
+  if (test.settings) await worker.evaluate((settings) => chrome.storage.sync.set(settings), test.settings);
   const page = await context.newPage();
   const result = await (async () => {
     await page.goto(test.page.includes(':') ? test.page : baseUrl + test.page);
@@ -326,6 +366,7 @@ async function runTest(browser, test, scale, baseUrl) {
   } finally {
     await result?.close();
     await page.close();
+    if (test.settings) await worker.evaluate(() => chrome.storage.sync.clear());
   }
 }
 

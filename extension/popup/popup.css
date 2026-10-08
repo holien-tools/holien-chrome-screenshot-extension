@@ -69,6 +69,12 @@ body {
   flex: 1;
 }
 
+hr {
+  margin: 6px 4px;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
 .mode kbd {
   color: var(--muted);
   font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

@@ -14,6 +14,41 @@
   "popupArea": {
     "message": "框選範圍"
   },
+  "settings": {
+    "message": "設定"
+  },
+  "maxScreensLabel": {
+    "message": "擷取整頁時最多擷取幾個畫面"
+  },
+  "screensUnit": {
+    "message": "個畫面"
+  },
+  "maxScreensHelp": {
+    "message": "無限捲動和很長的頁面擷取到這裡就停止，可以設定 $MIN$ 到 $MAX$。每個畫面大約需要 0.5 秒以上，圖片太高時會分成多張。",
+    "placeholders": {
+      "min": { "content": "$1" },
+      "max": { "content": "$2" }
+    }
+  },
+  "maxScreensInvalid": {
+    "message": "請輸入 $MIN$ 到 $MAX$ 之間的整數。",
+    "placeholders": {
+      "min": { "content": "$1" },
+      "max": { "content": "$2" }
+    }
+  },
+  "resetDefault": {
+    "message": "恢復預設值（$DEFAULT$）",
+    "placeholders": {
+      "default": { "content": "$1" }
+    }
+  },
+  "saved": {
+    "message": "已儲存"
+  },
+  "saveFailed": {
+    "message": "無法儲存設定，請再試一次。"
+  },
   "commandFullPage": {
     "message": "擷取整個網頁"
   },

@@ -14,6 +14,41 @@
   "popupArea": {
     "message": "Select area"
   },
+  "settings": {
+    "message": "Settings"
+  },
+  "maxScreensLabel": {
+    "message": "Most screens per full page capture"
+  },
+  "screensUnit": {
+    "message": "screens"
+  },
+  "maxScreensHelp": {
+    "message": "Infinite scroll and very long pages stop here. From $MIN$ to $MAX$. Each screen takes about 0.5 seconds or more, and tall captures are split into several images.",
+    "placeholders": {
+      "min": { "content": "$1" },
+      "max": { "content": "$2" }
+    }
+  },
+  "maxScreensInvalid": {
+    "message": "Enter a whole number from $MIN$ to $MAX$.",
+    "placeholders": {
+      "min": { "content": "$1" },
+      "max": { "content": "$2" }
+    }
+  },
+  "resetDefault": {
+    "message": "Reset to default ($DEFAULT$)",
+    "placeholders": {
+      "default": { "content": "$1" }
+    }
+  },
+  "saved": {
+    "message": "Saved"
+  },
+  "saveFailed": {
+    "message": "Couldn't save the setting. Try again."
+  },
   "commandFullPage": {
     "message": "Capture the full page"
   },
