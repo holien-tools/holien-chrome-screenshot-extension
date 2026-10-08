@@ -3,8 +3,8 @@ import { saveCapture } from './lib/store.js';
 const HELPER_FILE = 'content/capture-helper.js';
 // chrome.tabs.captureVisibleTab is limited to 2 calls per second.
 const MIN_CAPTURE_INTERVAL_MS = 550;
-// Upper bound on screens per capture, so pages that keep growing while they
-// scroll (infinite scroll) still finish.
+// Upper bound on screens per capture, so very long pages still finish in
+// reasonable time and memory.
 const MAX_FRAMES = 60;
 // Tallest image (device pixels) per file. Taller pages are split into parts
 // to stay well inside Chrome's canvas size and memory limits.
@@ -62,6 +62,7 @@ async function captureTab(tab) {
     createdAt: Date.now(),
     screens: capture.frames.length,
     truncated: capture.truncated,
+    grew: capture.grew,
     ...image,
   });
 }
@@ -70,10 +71,14 @@ async function captureTab(tab) {
 async function captureFrames(tab) {
   const frames = [];
   let truncated = false;
+  let grew = false;
   let lastCaptureAt = 0;
   let y = 0;
   for (;;) {
     const view = await callHelper(tab.id, 'scrollTo', y);
+    // The page loaded more content while being scrolled (infinite scroll).
+    // It's left out: the capture stops at the height the page started with.
+    grew ||= view.grew;
     // The page refused to scroll any further.
     if (frames.length && view.pos <= frames.at(-1).pos) break;
 
@@ -97,7 +102,7 @@ async function captureFrames(tab) {
     await setBadge(tab.id, `${Math.min(99, Math.round(progress * 100))}%`);
     y = frame.pos + frame.height;
   }
-  return { frames, truncated };
+  return { frames, truncated, grew };
 }
 
 // Records which part of a captured screen shows the scrolled content (in CSS

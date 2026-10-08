@@ -17,7 +17,7 @@ import { chromium } from 'playwright';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = path.join(ROOT, 'test-output');
 const WINDOW = { width: 1280, height: 800 };
-// Lowered from the real limit so the infinite scroll test finishes quickly.
+// Lowered from the real limit so the very long page test finishes quickly.
 const TEST_MAX_FRAMES = 20;
 
 const BLACK = [0, 0, 0];
@@ -92,10 +92,22 @@ const tests = [
     },
   },
   {
-    name: 'infinite scroll stops at the frame limit',
+    name: 'infinite scroll stops at what was loaded when capture started',
     page: 'infinite.html',
+    async check({ image, result, scale }) {
+      assert.equal(image.height, 2500 * scale, 'image is as tall as the first 10 bands');
+      const notices = await result.locator('#notices li').allTextContents();
+      assert.equal(notices.length, 1, 'notice that the page loaded more content');
+      for (const column of image.columns) checkColumn(column, scale, (y) => bandColor(Math.floor(y / 250)));
+    },
+  },
+  {
+    name: 'very long page stops at the frame limit',
+    page: 'very-long.html',
     scales: [1],
-    async check({ image, result }) {
+    async check({ image, page, result }) {
+      const viewport = await page.evaluate(() => innerHeight);
+      assert.equal(image.height, TEST_MAX_FRAMES * viewport, `image holds ${TEST_MAX_FRAMES} screens`);
       const notices = await result.locator('#notices li').allTextContents();
       assert.equal(notices.length, 1);
       assert.match(notices[0], new RegExp(`\\b${TEST_MAX_FRAMES}\\b`));
