@@ -182,9 +182,7 @@
     return {
       pos: target ? target.scrollTop : window.scrollY,
       maxPos: scroller.scrollHeight - scroller.clientHeight,
-      // Where the page ended when the capture started, and whether it has
-      // loaded more since.
-      startMaxPos: state.height - scroller.clientHeight,
+      // Whether the page has loaded more since the capture started.
       grew: scroller.scrollHeight > state.height,
       rect: captureRect(target),
       viewportWidth: innerWidth,

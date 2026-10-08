@@ -3,13 +3,10 @@ import { saveCapture } from './lib/store.js';
 const HELPER_FILE = 'content/capture-helper.js';
 // chrome.tabs.captureVisibleTab is limited to 2 calls per second.
 const MIN_CAPTURE_INTERVAL_MS = 550;
-// Upper bound on screens per capture, so very long pages still finish in
-// reasonable time and memory.
-const MAX_FRAMES = 60;
-// Pages that keep loading more content as they're scrolled (infinite scroll)
-// never end, so they stop after this many screens. Content that was already
-// loaded when the capture started is always captured, though.
-const MAX_INFINITE_SCROLL_FRAMES = 10;
+// Most screens per capture, for every page: pages that keep loading more
+// content as they're scrolled (infinite scroll) never end, and very long pages
+// would take a long time.
+const MAX_FRAMES = 10;
 // Tallest image (device pixels) per file. Taller pages are split into parts
 // to stay well inside Chrome's canvas size and memory limits.
 const MAX_PART_HEIGHT = 16384;
@@ -87,12 +84,9 @@ async function captureFrames(tab) {
 
     const isFirst = frames.length === 0;
     let isLast = view.pos >= view.maxPos - 1;
-    if (!isLast) {
-      const count = frames.length + 1;
-      const pastStartingEnd = view.pos >= view.startMaxPos - 1;
-      if (grew && pastStartingEnd && count >= MAX_INFINITE_SCROLL_FRAMES) stoppedEarly = 'infiniteScroll';
-      else if (count >= MAX_FRAMES) stoppedEarly = 'tooLong';
-      isLast = stoppedEarly !== null;
+    if (!isLast && frames.length + 1 >= MAX_FRAMES) {
+      isLast = true;
+      stoppedEarly = grew ? 'infiniteScroll' : 'tooLong';
     }
     // Fixed headers only belong on the first screen, fixed footers on the last.
     await callHelper(tab.id, 'showFixed', { top: isFirst, bottom: isLast });
@@ -104,10 +98,11 @@ async function captureFrames(tab) {
     frames.push(frame);
     if (isLast) break;
 
-    // An infinite scroll page's end keeps moving, so count screens instead.
-    const progress = grew
-      ? frames.length / MAX_INFINITE_SCROLL_FRAMES
-      : (frame.pos + frame.height) / (view.maxPos + frame.height);
+    // Whichever comes first: the end of the page or the screen limit.
+    const progress = Math.max(
+      frames.length / MAX_FRAMES,
+      (frame.pos + frame.height) / (view.maxPos + frame.height),
+    );
     await setBadge(tab.id, `${Math.min(99, Math.round(progress * 100))}%`);
     y = frame.pos + frame.height;
   }

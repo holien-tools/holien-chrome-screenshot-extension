@@ -17,8 +17,12 @@ import { chromium } from 'playwright';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = path.join(ROOT, 'test-output');
 const WINDOW = { width: 1280, height: 800 };
-// Lowered from the real limit so the very long page test finishes quickly.
-const TEST_MAX_FRAMES = 20;
+// The screen limit in background.js.
+const MAX_FRAMES = Number(
+  /const MAX_FRAMES = (\d+);/.exec(await fs.readFile(path.join(ROOT, 'extension', 'background.js'), 'utf8'))[1],
+);
+// Lowered from the real per-image limit so the test pages get split into parts.
+const TEST_MAX_PART_HEIGHT = 4096;
 
 const BLACK = [0, 0, 0];
 const WHITE = [255, 255, 255];
@@ -36,16 +40,16 @@ const tests = [
       await page.evaluate(() => window.scrollTo({ top: 3000, behavior: 'instant' }));
     },
     async check({ image, page, scale }) {
-      const total = 10050;
+      const total = 5050;
       const viewport = await page.evaluate(() => innerWidth);
       assert.equal(image.width, viewport * scale, 'image is as wide as the viewport (no scrollbar)');
       assert.equal(image.height, total * scale, 'image is as tall as the page');
-      assert.equal(image.parts, Math.ceil((total * scale) / 16384), 'tall images are split');
+      assert.equal(image.parts, Math.ceil((total * scale) / TEST_MAX_PART_HEIGHT), 'tall images are split');
       const expected = (y) => {
         if (y < 60) return BLACK; // fixed header, first screen only
         if (y >= total - 40) return MAGENTA; // fixed footer, last screen only
-        if (y >= 5000 && y < 5050) return CYAN; // sticky bar, where it sits in the page
-        return bandColor(Math.floor((y < 5000 ? y : y - 50) / 250));
+        if (y >= 2500 && y < 2550) return CYAN; // sticky bar, where it sits in the page
+        return bandColor(Math.floor((y < 2500 ? y : y - 50) / 250));
       };
       for (const column of image.columns) checkColumn(column, scale, expected);
 
@@ -72,12 +76,12 @@ const tests = [
         return { width: el.getBoundingClientRect().width, scrollTop: el.scrollTop };
       });
       assert.equal(image.width, main.width * scale, 'image is as wide as the scroll container');
-      assert.equal(image.height, 9000 * scale, 'image is as tall as the scroll container content');
+      assert.equal(image.height, 4500 * scale, 'image is as tall as the scroll container content');
       const band = (y) => bandColor(Math.floor(y / 300));
       checkColumn(image.columns[0], scale, band);
       checkColumn(image.columns[1], scale, band);
       // The floating button is fixed to the bottom, so it shows up once, at the end.
-      checkColumn(image.columns[2], scale, (y) => (y >= 9000 - 64 && y < 9000 - 16 ? MAGENTA : band(y)));
+      checkColumn(image.columns[2], scale, (y) => (y >= 4500 - 64 && y < 4500 - 16 ? MAGENTA : band(y)));
       assert.equal(main.scrollTop, 1234, 'scroll position is restored');
     },
   },
@@ -92,42 +96,14 @@ const tests = [
     },
   },
   {
-    name: 'infinite scroll stops after 10 screens',
+    name: 'infinite scroll stops at the screen limit',
     page: 'infinite.html',
-    async check({ image, page, result, scale }) {
-      const viewport = await page.evaluate(() => innerHeight);
-      assert.equal(image.height, 10 * viewport * scale, 'image holds 10 screens');
-      const notices = await result.locator('#notices li').allTextContents();
-      assert.equal(notices.length, 1);
-      assert.match(notices[0], /\b10\b/);
-      for (const column of image.columns) checkColumn(column, scale, (y) => bandColor(Math.floor(y / 250)));
-    },
+    check: (args) => checkStoppedAtLimit(args, 'infiniteScrollNotice'),
   },
   {
-    name: 'infinite scroll still captures everything loaded before the click',
-    page: 'infinite.html?initial=40',
-    output: 'infinite-preloaded',
-    scales: [1],
-    async check({ image, page }) {
-      // 40 bands of 250px were loaded at the start: more than 10 screens.
-      const viewport = await page.evaluate(() => innerHeight);
-      assert.ok(image.height >= 10000, `image covers the 10000px loaded at the start (got ${image.height})`);
-      assert.ok(image.height < 10000 + viewport, `image stops within a screen of that (got ${image.height})`);
-      checkColumn(image.columns[0], 1, (y) => bandColor(Math.floor(y / 250)));
-    },
-  },
-  {
-    name: 'very long page stops at the frame limit',
+    name: 'very long page stops at the screen limit',
     page: 'very-long.html',
-    scales: [1],
-    async check({ image, page, result }) {
-      const viewport = await page.evaluate(() => innerHeight);
-      assert.equal(image.height, TEST_MAX_FRAMES * viewport, `image holds ${TEST_MAX_FRAMES} screens`);
-      const notices = await result.locator('#notices li').allTextContents();
-      assert.equal(notices.length, 1);
-      assert.match(notices[0], new RegExp(`\\b${TEST_MAX_FRAMES}\\b`));
-      checkColumn(image.columns[0], 1, (y) => bandColor(Math.floor(y / 250)));
-    },
+    check: (args) => checkStoppedAtLimit(args, 'tooLongNotice'),
   },
   {
     name: 'browser pages show an error',
@@ -138,6 +114,18 @@ const tests = [
     },
   },
 ];
+
+async function checkStoppedAtLimit({ image, page, result, scale }, noticeKey) {
+  const viewport = await page.evaluate(() => innerHeight);
+  assert.equal(image.height, MAX_FRAMES * viewport * scale, `image holds ${MAX_FRAMES} screens`);
+  const notices = await result.locator('#notices li').allTextContents();
+  const expected = await result.evaluate(([key, count]) => chrome.i18n.getMessage(key, [count]), [
+    noticeKey,
+    String(MAX_FRAMES),
+  ]);
+  assert.ok(notices.includes(expected), `notice "${expected}" in ${JSON.stringify(notices)}`);
+  for (const column of image.columns) checkColumn(column, scale, (y) => bandColor(Math.floor(y / 250)));
+}
 
 function checkColumn(column, scale, expected) {
   const colorAt = (row) => expected((row + 0.5) / scale);
@@ -224,7 +212,7 @@ async function runTest({ context, worker }, test, scale, baseUrl) {
     let image;
     if (await result.locator('#capture-view').isVisible()) {
       image = await readImage(result, test.columns ?? ((width) => [10, Math.floor(width / 2), width - 2]), scale);
-      const name = `${test.output ?? path.basename(test.page, '.html')}@${scale}x`;
+      const name = `${path.basename(test.page, '.html')}@${scale}x`;
       for (const [i, png] of image.pngs.entries()) {
         await fs.writeFile(path.join(OUT_DIR, `${name}_${i + 1}.png`), Buffer.from(png, 'base64'));
       }
@@ -280,7 +268,7 @@ async function readImage(result, columnsFor, scale) {
 
 // A copy of the extension the test can drive. Tests can't click the toolbar
 // button (which is what grants activeTab), so this copy gets host access
-// instead and exposes the click handler.
+// instead and exposes the click handler. It also splits images sooner.
 async function buildTestExtension() {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'stw-extension-'));
   await fs.cp(path.join(ROOT, 'extension'), dir, { recursive: true });
@@ -293,8 +281,11 @@ async function buildTestExtension() {
 
   const backgroundPath = path.join(dir, 'background.js');
   const background = await fs.readFile(backgroundPath, 'utf8');
-  const patched = background.replace(/const MAX_FRAMES = \d+;/, `const MAX_FRAMES = ${TEST_MAX_FRAMES};`);
-  assert.notEqual(patched, background, 'MAX_FRAMES not found in background.js');
+  const patched = background.replace(
+    /const MAX_PART_HEIGHT = \d+;/,
+    `const MAX_PART_HEIGHT = ${TEST_MAX_PART_HEIGHT};`,
+  );
+  assert.notEqual(patched, background, 'MAX_PART_HEIGHT not found in background.js');
   await fs.writeFile(backgroundPath, `${patched}\nglobalThis.__stwHandleClick = handleClick;\n`);
   return dir;
 }

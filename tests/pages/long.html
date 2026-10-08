@@ -17,11 +17,11 @@
     <div id="footer"></div>
     <script src="bands.js"></script>
     <script>
-      // 40 bands of 250px with a 50px sticky bar after band 19: 10050px in total.
+      // 20 bands of 250px with a 50px sticky bar after band 9: 5050px in total.
       const content = document.getElementById('content');
-      addBands(content, 0, 20, 250);
+      addBands(content, 0, 10, 250);
       content.append(Object.assign(document.createElement('div'), { id: 'sticky' }));
-      addBands(content, 20, 20, 250);
+      addBands(content, 10, 10, 250);
     </script>
   </body>
 </html>

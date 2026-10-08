@@ -8,14 +8,13 @@
   <body>
     <script src="bands.js"></script>
     <script>
-      // Starts with ?initial= bands (default 10) and appends 10 more whenever
-      // the reader gets near the bottom.
+      // Appends more bands whenever the reader gets near the bottom.
       let next = 0;
-      const more = (count = 10) => {
-        addBands(document.body, next, count, 250);
-        next += count;
+      const more = () => {
+        addBands(document.body, next, 10, 250);
+        next += 10;
       };
-      more(Number(new URLSearchParams(location.search).get('initial')) || 10);
+      more();
       addEventListener('scroll', () => {
         if (scrollY + innerHeight > document.body.scrollHeight - 1000) more();
       });
