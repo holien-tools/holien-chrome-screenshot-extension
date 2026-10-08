@@ -1,7 +1,7 @@
 // Hands finished screenshots from the service worker to the result page.
 // Images can be far larger than chrome.storage allows, so they go in IndexedDB.
 
-const DB_NAME = 'stw-full-page-capture';
+const DB_NAME = 'holien-full-page-capture';
 const STORE = 'captures';
 export const KEEP_LATEST = 3;
 

@@ -201,7 +201,7 @@ async function runTest({ context, worker }, test, scale, baseUrl) {
     // Same as clicking the toolbar button on this tab.
     await worker.evaluate(async (url) => {
       const tab = (await chrome.tabs.query({})).find((t) => t.url === url);
-      await globalThis.__stwHandleClick(tab);
+      await globalThis.__holienHandleClick(tab);
     }, page.url());
     const result = await opened;
     await result.waitForSelector('body[data-state="ready"]');
@@ -270,7 +270,7 @@ async function readImage(result, columnsFor, scale) {
 // button (which is what grants activeTab), so this copy gets host access
 // instead and exposes the click handler. It also splits images sooner.
 async function buildTestExtension() {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'stw-extension-'));
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'holien-extension-'));
   await fs.cp(path.join(ROOT, 'extension'), dir, { recursive: true });
 
   const manifestPath = path.join(dir, 'manifest.json');
@@ -286,7 +286,7 @@ async function buildTestExtension() {
     `const MAX_PART_HEIGHT = ${TEST_MAX_PART_HEIGHT};`,
   );
   assert.notEqual(patched, background, 'MAX_PART_HEIGHT not found in background.js');
-  await fs.writeFile(backgroundPath, `${patched}\nglobalThis.__stwHandleClick = handleClick;\n`);
+  await fs.writeFile(backgroundPath, `${patched}\nglobalThis.__holienHandleClick = handleClick;\n`);
   return dir;
 }
 

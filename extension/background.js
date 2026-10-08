@@ -178,7 +178,7 @@ async function stitch(frames) {
 async function callHelper(tabId, method, arg = null) {
   const [injection] = await chrome.scripting.executeScript({
     target: { tabId },
-    func: (name, value) => window.__stwFullPageCapture?.[name](value) ?? null,
+    func: (name, value) => window.__holienFullPageCapture?.[name](value) ?? null,
     args: [method, arg],
   });
   if (injection?.result == null) {

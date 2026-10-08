@@ -1,8 +1,8 @@
 // Injected into the page by background.js. Exposes the page-side steps of a
-// full page capture on window.__stwFullPageCapture (in the extension's
+// full page capture on window.__holienFullPageCapture (in the extension's
 // isolated world, so the page can't see or break it).
 (() => {
-  if (window.__stwFullPageCapture) return;
+  if (window.__holienFullPageCapture) return;
 
   // Below this window scroll range (as a fraction of the viewport height) the
   // page is treated as not scrolling, and an inner scroll container is used
@@ -213,5 +213,5 @@
     return true;
   }
 
-  window.__stwFullPageCapture = { prepare, scrollTo, showFixed, restore };
+  window.__holienFullPageCapture = { prepare, scrollTo, showFixed, restore };
 })();
