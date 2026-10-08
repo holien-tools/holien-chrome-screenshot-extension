@@ -80,3 +80,7 @@ HEADED=1 npm test                 # watch it run in a window
 ```
 
 Captured images are saved in `test-output/` so you can open and inspect them.
+
+## Author
+
+Joe Wu

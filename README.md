@@ -79,3 +79,7 @@ HEADED=1 npm test                 # 開視窗看它執行
 ```
 
 擷取到的圖片會存在 `test-output/`，可以直接打開檢查。
+
+## 作者
+
+Joe Wu
