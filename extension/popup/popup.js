@@ -15,6 +15,10 @@ async function main() {
     if (shortcut) Object.assign(button.querySelector('kbd'), { textContent: shortcut, hidden: false });
     button.addEventListener('click', () => start(mode));
   }
+  document.querySelector('#settings').addEventListener('click', async () => {
+    await chrome.runtime.openOptionsPage();
+    window.close();
+  });
 }
 
 async function start(mode) {

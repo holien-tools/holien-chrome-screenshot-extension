@@ -28,6 +28,10 @@ Click the toolbar button to capture the **entire web page** (including the parts
 
 On a Mac, Alt is the Option key. If another extension already uses a key, Chrome doesn't assign it; you can change or set the shortcuts at `chrome://extensions/shortcuts`.
 
+### Settings
+
+Click the toolbar button and choose **Settings** (or right-click the button and choose **Options**) to change the most screens a full page capture takes: 50 by default, from 1 to 200. Higher numbers take longer and make more images: on a 4K display, 200 screens take about 3 minutes. With Chrome sync on, the setting follows you to your other computers.
+
 ## How scrolling is handled in full page captures
 
 Chrome can only capture what's currently visible, so the extension:
@@ -39,13 +43,13 @@ Chrome can only capture what's currently visible, so the extension:
 - **Scrollbars**: temporarily hidden while capturing, so they don't appear in the image.
 - **Lazy-loaded images**: after each scroll, it waits for the images on screen to load (up to 1.5 seconds) before taking the screenshot.
 - **Pages that scroll an inner element**: on some pages (app-style layouts like Gmail or Notion), a section inside the page scrolls rather than the whole window. In that case it automatically finds the main scrolling section and captures its full content.
-- **Pages that load more content as you scroll** (infinite scroll, such as the Yahoo home page or social media feeds): it keeps capturing the newly loaded content, **stopping after at most 50 screens**, and the preview page tells you.
+- **Pages that load more content as you scroll** (infinite scroll, such as the Yahoo home page or social media feeds): it keeps capturing the newly loaded content, **stopping at the number of screens in the settings (50 by default)**, and the preview page tells you.
 
 When the capture finishes, the scroll position and styles are restored to how they were.
 
 ## Limitations
 
-- **At most 50 screens per full page capture**: infinite scroll pages (such as social media feeds) keep loading new content, and very long regular pages are treated the same way. The capture stops after 50 screens, and the preview page tells you.
+- **Full page captures have a screen limit**: 50 by default, adjustable from 1 to 200 in the settings. Infinite scroll pages (such as social media feeds) keep loading new content, and very long regular pages are treated the same way. The capture stops at the limit, and the preview page tells you.
 - **Tall images are split into several**: a single image can be at most 16384 pixels tall. Longer captures (more than about 20 screens on a typical display, fewer on high-resolution displays) are split top to bottom into several images, and the preview page lets you download them all at once.
 - **Select area only covers what's on screen**: to select another part, scroll there first, or use a full page capture.
 - **Only page content is captured**: not the browser toolbar, other windows or the desktop.
@@ -59,6 +63,7 @@ When the capture finishes, the scroll position and styles are restored to how th
 
 - `activeTab`: access to the current tab to take the screenshot, only when you click the button or press a shortcut.
 - `scripting`: runs the code that scrolls the page, adjusts its styles and shows the area selection.
+- `storage`: keeps your settings.
 
 It doesn't need permission to "read all your data on all websites", and it never sends any data over the network. Screenshots stay in your browser.
 
@@ -70,11 +75,13 @@ extension/               ← load this folder in Chrome
   background.js          capture flow: full page (scroll, screenshot, stitch,
                          split) and area (screenshot, crop)
   popup/                 menu shown when the toolbar button is clicked
+  options/               settings page
   content/capture-helper.js
                          injected into the page: finds the scrolling section,
                          handles fixed/sticky, scrolls, restores
   content/area-select.js injected into the page: shows the frozen screen for
                          selecting an area
+  lib/settings.js        user settings (the screen limit)
   lib/store.js           hands screenshots to the preview page via IndexedDB
   result/                preview, download and copy page
   _locales/              English and Traditional Chinese UI text

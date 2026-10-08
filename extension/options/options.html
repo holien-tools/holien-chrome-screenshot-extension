@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Settings</title>
+    <link rel="icon" href="../icons/icon32.png" />
+    <link rel="stylesheet" href="options.css" />
+    <script type="module" src="options.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1 id="title"></h1>
+      <section class="setting">
+        <label for="max-screens" data-i18n="maxScreensLabel"></label>
+        <div class="row">
+          <input id="max-screens" type="number" inputmode="numeric" step="1" aria-describedby="max-screens-help status" />
+          <span data-i18n="screensUnit"></span>
+          <button id="reset" class="link" type="button"></button>
+        </div>
+        <p id="max-screens-help" class="help"></p>
+        <p id="status" role="status"></p>
+      </section>
+    </main>
+  </body>
+</html>
