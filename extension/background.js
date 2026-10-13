@@ -232,7 +232,7 @@ async function stitch(frames) {
       height: partHeight,
     });
   }
-  return { width, height, parts };
+  return { width, height, scale: first.scale, parts };
 }
 
 // Cuts the selected area (CSS pixels) out of a screenshot of the visible page.
@@ -247,7 +247,7 @@ async function crop(dataUrl, rect, viewportWidth) {
   canvas.getContext('2d').drawImage(bitmap, sx, sy, width, height, 0, 0, width, height);
   bitmap.close();
   const blob = await canvas.convertToBlob({ type: 'image/png' });
-  return { width, height, parts: [{ blob, width, height }] };
+  return { width, height, scale, parts: [{ blob, width, height }] };
 }
 
 async function callHelper(tabId, method, arg = null) {

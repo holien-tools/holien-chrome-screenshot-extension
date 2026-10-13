@@ -97,6 +97,60 @@
       "count": { "content": "$1" }
     }
   },
+  "boxesLabel": {
+    "message": "標示框線"
+  },
+  "boxesHint": {
+    "message": "在圖片上拖曳就能畫出框線，下載或複製時會自動合併進圖片。"
+  },
+  "boxCount": {
+    "message": "已畫 $COUNT$ 個框線，下載或複製時會自動合併進圖片。點一下框線再按 Delete 可以刪除。",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "customColor": {
+    "message": "自訂"
+  },
+  "colorRed": {
+    "message": "紅色"
+  },
+  "colorGreen": {
+    "message": "綠色"
+  },
+  "colorBlue": {
+    "message": "藍色"
+  },
+  "colorYellow": {
+    "message": "黃色"
+  },
+  "colorOrange": {
+    "message": "橘色"
+  },
+  "colorBlack": {
+    "message": "黑色"
+  },
+  "colorWhite": {
+    "message": "白色"
+  },
+  "lineWidth": {
+    "message": "線條"
+  },
+  "lineThin": {
+    "message": "細"
+  },
+  "lineMedium": {
+    "message": "中"
+  },
+  "lineThick": {
+    "message": "粗"
+  },
+  "undo": {
+    "message": "復原"
+  },
+  "clearBoxes": {
+    "message": "清除框線"
+  },
   "partLabel": {
     "message": "第 $INDEX$ 張，共 $TOTAL$ 張",
     "placeholders": {

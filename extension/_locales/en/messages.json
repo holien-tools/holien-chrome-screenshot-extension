@@ -97,6 +97,60 @@
       "count": { "content": "$1" }
     }
   },
+  "boxesLabel": {
+    "message": "Draw boxes"
+  },
+  "boxesHint": {
+    "message": "Drag on the image to draw a box. Boxes are merged into the image when you download or copy it."
+  },
+  "boxCount": {
+    "message": "$COUNT$ boxes drawn. They're merged into the image when you download or copy it. Click a box and press Delete to remove it.",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "customColor": {
+    "message": "Custom"
+  },
+  "colorRed": {
+    "message": "Red"
+  },
+  "colorGreen": {
+    "message": "Green"
+  },
+  "colorBlue": {
+    "message": "Blue"
+  },
+  "colorYellow": {
+    "message": "Yellow"
+  },
+  "colorOrange": {
+    "message": "Orange"
+  },
+  "colorBlack": {
+    "message": "Black"
+  },
+  "colorWhite": {
+    "message": "White"
+  },
+  "lineWidth": {
+    "message": "Line"
+  },
+  "lineThin": {
+    "message": "Thin"
+  },
+  "lineMedium": {
+    "message": "Medium"
+  },
+  "lineThick": {
+    "message": "Thick"
+  },
+  "undo": {
+    "message": "Undo"
+  },
+  "clearBoxes": {
+    "message": "Clear boxes"
+  },
   "partLabel": {
     "message": "Part $INDEX$ of $TOTAL$",
     "placeholders": {

@@ -2,7 +2,7 @@
 
 [繁體中文](README.md) | **English**
 
-Click the toolbar button to capture the **entire web page** (including the parts you have to scroll to see) as a PNG image, or **select part of the screen** like the Windows Snipping Tool, then preview it and download or copy it.
+Click the toolbar button to capture the **entire web page** (including the parts you have to scroll to see) as a PNG image, or **select part of the screen** like the Windows Snipping Tool, then preview it, **draw boxes on it to point things out**, and download or copy it.
 
 ## Install
 
@@ -18,6 +18,16 @@ Click the toolbar button to capture the **entire web page** (including the parts
    - **Full page**: the button shows the progress (%) while capturing. **Stay on this tab until it finishes.**
    - **Select area**: the screen freezes and dims. Drag with the mouse to select the area to capture, and release to finish. Press Esc to cancel.
 3. When it's done, a new tab opens with a preview. Click **Download PNG** to save it, or **Copy** to paste it straight into a chat or document.
+
+### Drawing boxes
+
+**Drag with the mouse** on the image in the preview to draw a box around something, as many as you like. In the toolbar you can:
+
+- **Pick a color**: red, green, blue, yellow, orange, black or white, or **Custom** for any color.
+- **Pick a line width**: thin, medium or thick (as it looks on screen, on high-resolution displays too).
+- **Remove boxes**: click a box to select it and press Delete; **Undo** (or Ctrl+Z) takes back the last box; **Clear boxes** removes them all. Press Esc to cancel a box you're drawing.
+
+The boxes are only drawn on the preview until you click **Download PNG** or **Copy**, when they're **merged into the image**. Without boxes, you get the original screenshot. Boxes aren't saved: they're gone when you close the preview.
 
 ### Keyboard shortcuts
 
@@ -83,7 +93,8 @@ extension/               ← load this folder in Chrome
                          selecting an area
   lib/settings.js        user settings (the screen limit)
   lib/store.js           hands screenshots to the preview page via IndexedDB
-  result/                preview, download and copy page
+  result/                preview, box drawing, download and copy page
+  result/annotate.js     draws boxes on the images and merges them in for download and copy
   _locales/              English and Traditional Chinese UI text
 tests/
   e2e.mjs                end-to-end tests
@@ -92,13 +103,14 @@ tests/
 
 ### Tests
 
-The tests use Playwright to launch Chromium, load the extension, capture the test pages in `tests/pages` (full page and selected areas), and check the colors of the images row by row (run at both 1x and 2x display scaling).
+The tests use Playwright to launch Chromium, load the extension, capture the test pages in `tests/pages` (full page and selected areas), and check the colors of the images row by row. They also draw boxes on the preview and check the copied image. Everything runs at both 1x and 2x display scaling.
 
 ```sh
 npm install
 npx playwright install chromium   # needed the first time
 npm test
 HEADED=1 npm test                 # watch it run in a window
+TEST=boxes npm test               # only the tests whose name contains "boxes"
 ```
 
 Captured images are saved in `test-output/` so you can open and inspect them.

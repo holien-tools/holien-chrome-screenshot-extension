@@ -11,14 +11,32 @@
   <body>
     <section id="capture-view" hidden>
       <header class="toolbar">
-        <div class="meta">
-          <h1 id="page-title"></h1>
-          <a id="page-url" target="_blank" rel="noopener noreferrer"></a>
-          <p id="summary"></p>
+        <div class="toolbar-main">
+          <div class="meta">
+            <h1 id="page-title"></h1>
+            <a id="page-url" target="_blank" rel="noopener noreferrer"></a>
+            <p id="summary"></p>
+          </div>
+          <button id="copy" class="button secondary" type="button" hidden></button>
+          <button id="download" class="button" type="button" hidden></button>
+          <button id="download-all" class="button" type="button" hidden></button>
         </div>
-        <button id="copy" class="button secondary" type="button" hidden></button>
-        <a id="download" class="button" hidden></a>
-        <button id="download-all" class="button" type="button" hidden></button>
+        <div class="tools" role="group" aria-labelledby="tools-label">
+          <span id="tools-label" class="tools-label" data-i18n="boxesLabel"></span>
+          <div id="swatches" class="swatches" role="radiogroup"></div>
+          <label class="custom-color">
+            <input id="custom-color" type="color" value="#e53935" />
+            <span class="swatch-ring" aria-hidden="true"></span>
+            <span data-i18n="customColor"></span>
+          </label>
+          <label class="line-width">
+            <span data-i18n="lineWidth"></span>
+            <select id="line-width"></select>
+          </label>
+          <button id="undo" class="tool" type="button" data-i18n="undo" disabled></button>
+          <button id="clear" class="tool" type="button" data-i18n="clearBoxes" disabled></button>
+          <span id="box-status" class="tools-status" aria-live="polite"></span>
+        </div>
       </header>
       <ul id="notices"></ul>
       <main id="parts"></main>

@@ -1,4 +1,5 @@
 import { KEEP_LATEST, loadCapture } from '../lib/store.js';
+import { COLORS, DEFAULT_LINE_WIDTH, LINE_WIDTHS, createAnnotator } from './annotate.js';
 
 const ERROR_MESSAGES = {
   restricted: 'errorRestricted',
@@ -56,32 +57,35 @@ function showCapture(capture) {
     ...notices.map((text) => Object.assign(document.createElement('li'), { textContent: text })),
   );
 
+  const annotator = setUpTools(createAnnotator({ scale: capture.scale ?? 1, onChange: updateToolState }));
+
   const baseName = fileBaseName(capture);
   const total = capture.parts.length;
-  const downloads = capture.parts.map((part, i) => {
+  // Each part's image with its boxes, for download and copy.
+  const exports = capture.parts.map((part, i) => {
     const url = URL.createObjectURL(part.blob);
     const fileName = total > 1 ? `${baseName}_${i + 1}of${total}.png` : `${baseName}.png`;
-    $('#parts').append(renderPart(part, url, fileName, i, total));
-    return { url, fileName };
+    const blob = () => annotator.composed(i, part.blob);
+    $('#parts').append(renderPart(part, url, fileName, i, total, blob, annotator));
+    return { blob, fileName };
   });
 
   if (total === 1) {
     const button = $('#download');
     button.textContent = msg('download');
-    button.href = downloads[0].url;
-    button.download = downloads[0].fileName;
+    button.addEventListener('click', () => downloadAll(exports));
     button.hidden = false;
-    setUpCopy($('#copy'), capture.parts[0].blob);
+    setUpCopy($('#copy'), exports[0].blob);
   } else {
     const button = $('#download-all');
     button.textContent = msg('downloadAll', total);
-    button.addEventListener('click', () => downloadAll(downloads));
+    button.addEventListener('click', () => downloadAll(exports));
     button.hidden = false;
   }
   $('#capture-view').hidden = false;
 }
 
-function renderPart(part, url, fileName, index, total) {
+function renderPart(part, url, fileName, index, total, blob, annotator) {
   const figure = document.createElement('figure');
   figure.className = 'part';
   if (total > 1) {
@@ -89,21 +93,87 @@ function renderPart(part, url, fileName, index, total) {
     const label = document.createElement('span');
     label.textContent = `${msg('partLabel', index + 1, total)} · ${msg('size', part.width, part.height)}`;
     const copy = Object.assign(document.createElement('button'), { type: 'button', className: 'link' });
-    setUpCopy(copy, part.blob);
-    const link = Object.assign(document.createElement('a'), {
-      href: url,
-      download: fileName,
+    setUpCopy(copy, blob);
+    const download = Object.assign(document.createElement('button'), {
+      type: 'button',
+      className: 'link',
       textContent: msg('download'),
     });
-    caption.append(label, copy, link);
+    download.addEventListener('click', () => downloadAll([{ blob, fileName }]));
+    caption.append(label, copy, download);
     figure.append(caption);
   }
-  const img = Object.assign(document.createElement('img'), { src: url, alt: fileName });
+  const canvas = document.createElement('div');
+  canvas.className = 'part-canvas';
+  const img = Object.assign(document.createElement('img'), { src: url, alt: fileName, draggable: false });
   img.className = 'part-image';
   img.width = part.width;
   img.height = part.height;
-  figure.append(img);
+  canvas.append(img);
+  annotator.attach(canvas, img, index);
+  figure.append(canvas);
   return figure;
+}
+
+// Wires the box drawing tools in the toolbar to the annotator.
+function setUpTools(annotator) {
+  const swatches = $('#swatches');
+  const custom = $('#custom-color');
+  const customLabel = custom.closest('label');
+  const showColor = () => {
+    for (const button of swatches.children) {
+      button.setAttribute('aria-checked', button.dataset.color === annotator.color);
+    }
+    customLabel.classList.toggle('selected', !COLORS.some(([, color]) => color === annotator.color));
+    customLabel.style.setProperty('--color', custom.value);
+  };
+  for (const [key, color] of COLORS) {
+    const button = Object.assign(document.createElement('button'), { type: 'button', className: 'swatch' });
+    button.dataset.color = color;
+    button.style.setProperty('--color', color);
+    button.setAttribute('role', 'radio');
+    button.setAttribute('aria-label', msg(key));
+    button.title = msg(key);
+    button.addEventListener('click', () => {
+      annotator.color = color;
+      showColor();
+    });
+    swatches.append(button);
+  }
+  custom.addEventListener('input', () => {
+    annotator.color = custom.value;
+    showColor();
+  });
+  showColor();
+
+  const widths = $('#line-width');
+  for (const [key, width] of LINE_WIDTHS) {
+    widths.append(Object.assign(document.createElement('option'), { value: width, textContent: msg(key) }));
+  }
+  widths.value = DEFAULT_LINE_WIDTH;
+  widths.addEventListener('change', () => (annotator.lineWidth = Number(widths.value)));
+
+  $('#undo').addEventListener('click', () => annotator.undo());
+  $('#clear').addEventListener('click', () => annotator.clear());
+  document.addEventListener('keydown', (event) => {
+    const target = event.target;
+    if (target.matches?.('input, select, textarea, a, button')) return;
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+      if (annotator.undo()) event.preventDefault();
+    } else if (event.key === 'Delete' || event.key === 'Backspace') {
+      if (annotator.deleteSelected()) event.preventDefault();
+    } else if (event.key === 'Escape') {
+      annotator.deselect();
+    }
+  });
+  updateToolState(0);
+  return annotator;
+}
+
+function updateToolState(count) {
+  $('#undo').disabled = count === 0;
+  $('#clear').disabled = count === 0;
+  $('#box-status').textContent = count ? msg('boxCount', count) : msg('boxesHint');
 }
 
 function setUpCopy(button, blob) {
@@ -113,7 +183,8 @@ function setUpCopy(button, blob) {
   button.addEventListener('click', async () => {
     clearTimeout(timer);
     try {
-      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      const image = await blob();
+      await navigator.clipboard.write([new ClipboardItem({ [image.type]: image })]);
       button.textContent = msg('copied');
     } catch (err) {
       console.error('Copy failed:', err);
@@ -123,11 +194,14 @@ function setUpCopy(button, blob) {
   });
 }
 
-async function downloadAll(downloads) {
-  for (const { url, fileName } of downloads) {
+async function downloadAll(exports) {
+  for (const { blob, fileName } of exports) {
+    const url = URL.createObjectURL(await blob());
     Object.assign(document.createElement('a'), { href: url, download: fileName }).click();
     // Chrome may drop downloads that start in the same instant.
     await new Promise((resolve) => setTimeout(resolve, 300));
+    // The download has the blob by now; the URL isn't needed any longer.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 }
 
