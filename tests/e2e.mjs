@@ -4,6 +4,7 @@
 //
 //   npm test             (headless)
 //   HEADED=1 npm test    (watch it run)
+//   TEST=boxes npm test  (only the tests whose name contains "boxes")
 //
 // Captured images are written to test-output/ for a look by eye.
 
@@ -148,6 +149,89 @@ const tests = [
     },
   },
   {
+    name: 'boxes drawn on the preview are merged into the copied and downloaded image',
+    page: 'long.html',
+    mode: 'area',
+    async before(page) {
+      await page.evaluate(() => window.scrollTo({ top: 1000, behavior: 'instant' }));
+      // The screenshot is of the last frame drawn, which has to be the scrolled one.
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      await sleep(200);
+    },
+    select: (page) => drag(page, { x: 40, y: 150 }, { x: 640, y: 500 }),
+    async check({ image, result, scale }) {
+      const band = (y) => bandColor(Math.floor((1150 + y) / 250));
+      const boxes = () => result.evaluate(() => document.querySelectorAll('.box').length);
+      const status = result.locator('#box-status');
+      const text = (key, ...subs) =>
+        result.evaluate(([key, subs]) => chrome.i18n.getMessage(key, subs), [key, subs.map(String)]);
+      await status.filter({ hasText: await text('boxesHint') }).waitFor();
+      assert.equal(await result.locator('#undo').isDisabled(), true, 'undo starts disabled');
+
+      // A green, thick box, in image pixels, clear of the band labels.
+      const green = { x1: 350, y1: 50, x2: 550, y2: 250, line: 8 * scale };
+      await result.click('.swatch[data-color="#2e9e45"]');
+      await result.selectOption('#line-width', '8');
+      await dragOnImage(result, green);
+      assert.equal(await boxes(), 1, 'the box is drawn');
+      await status.filter({ hasText: await text('boxCount', 1) }).waitFor();
+
+      // A click is not a box.
+      await dragOnImage(result, { x1: 200, y1: 300, x2: 201, y2: 301 });
+      assert.equal(await boxes(), 1, 'a click does not add a box');
+
+      // A second box, selected by clicking its line and deleted.
+      await result.click('.swatch[data-color="#e53935"]');
+      await dragOnImage(result, { x1: 100, y1: 60, x2: 300, y2: 200 });
+      assert.equal(await boxes(), 2, 'a second box is drawn');
+      await clickOnImage(result, 100 + 2 * scale, 130);
+      assert.equal(await result.locator('.box.selected').count(), 1, 'clicking the line selects the box');
+      await result.keyboard.press('Delete');
+      assert.equal(await boxes(), 1, 'Delete removes the selected box');
+      const [left] = await result.evaluate(() =>
+        [...document.querySelectorAll('.box .line')].map((line) => line.getAttribute('stroke')),
+      );
+      assert.equal(left, '#2e9e45', 'the green box is the one left');
+
+      // Undo takes the green box back, and it's drawn again for the checks.
+      await result.click('#undo');
+      assert.equal(await boxes(), 0, 'undo removes the last box');
+      await status.filter({ hasText: await text('boxesHint') }).waitFor();
+      await result.click('.swatch[data-color="#2e9e45"]');
+      await dragOnImage(result, green);
+
+      const expected = (x) => (y) => {
+        const inside = x >= green.x1 && x < green.x2 && y >= green.y1 && y < green.y2;
+        const onLine =
+          x < green.x1 + green.line ||
+          x >= green.x2 - green.line ||
+          y < green.y1 + green.line ||
+          y >= green.y2 - green.line;
+        return inside && onLine ? [0x2e, 0x9e, 0x45] : band(y / scale);
+      };
+      const columns = [green.x1 + 2, 450, 300];
+      const copied = await readCopy(result, columns);
+      assert.deepEqual(
+        { width: copied.width, height: copied.height },
+        { width: image.width, height: image.height },
+        'the copied image is the size of the screenshot',
+      );
+      for (const column of copied.columns) checkColumn(column, 1, expected(column.x));
+
+      const download = result.waitForEvent('download');
+      await result.click('#download');
+      const file = await download;
+      assert.match(file.suggestedFilename(), /^screenshot_127\.0\.0\.1_\d{8}-\d{6}\.png$/, 'file name');
+      const size = (await fs.stat(await file.path())).size;
+      assert.ok(size > 0, 'the download has content');
+
+      await result.click('#clear');
+      assert.equal(await boxes(), 0, 'clear removes every box');
+      const original = await readCopy(result, [450]);
+      checkColumn(original.columns[0], 1, (y) => band(y / scale));
+    },
+  },
+  {
     name: 'area selection is cancelled with Esc',
     page: 'long.html',
     mode: 'area',
@@ -241,6 +325,59 @@ async function drag(page, from, to) {
   await page.mouse.up();
 }
 
+// Drags on the first image of the result page, in image pixels.
+async function dragOnImage(result, { x1, y1, x2, y2 }) {
+  const from = await imagePoint(result, x1, y1);
+  const to = await imagePoint(result, x2, y2);
+  await result.mouse.move(from.x, from.y);
+  await result.mouse.down();
+  await result.mouse.move(to.x, to.y, { steps: 5 });
+  await result.mouse.up();
+}
+
+async function clickOnImage(result, x, y) {
+  const point = await imagePoint(result, x, y);
+  await result.mouse.click(point.x, point.y);
+}
+
+// Where an image pixel is on the result page.
+function imagePoint(result, x, y) {
+  return result.evaluate(
+    ([x, y]) => {
+      const img = document.querySelector('img.part-image');
+      const rect = img.getBoundingClientRect();
+      return { x: rect.left + (x * rect.width) / img.width, y: rect.top + (y * rect.height) / img.height };
+    },
+    [x, y],
+  );
+}
+
+// Copies the image with the result page's button and reads back its size and
+// the colors of every row in the given pixel columns.
+async function readCopy(result, xs) {
+  const [copy, copied] = await result.evaluate(() => ['copy', 'copied'].map((key) => chrome.i18n.getMessage(key)));
+  // "Copied" from an earlier click goes away after a moment.
+  await result.waitForFunction((copy) => document.querySelector('#copy').textContent === copy, copy);
+  await result.click('#copy');
+  await result.locator('#copy', { hasText: copied }).waitFor();
+  return result.evaluate(async (xs) => {
+    const [item] = await navigator.clipboard.read();
+    const bitmap = await createImageBitmap(await item.getType('image/png'));
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0);
+    const columns = xs.map((x) => {
+      const px = ctx.getImageData(x, 0, 1, bitmap.height).data;
+      const values = [];
+      for (let y = 0; y < bitmap.height; y++) {
+        values.push((px[y * 4] << 16) | (px[y * 4 + 1] << 8) | px[y * 4 + 2]);
+      }
+      return { x, values };
+    });
+    return { width: bitmap.width, height: bitmap.height, columns };
+  }, xs);
+}
+
 // Copies the screenshot with the result page's button and reads it back.
 async function checkCopy(result, image) {
   const copied = await result.evaluate(() => chrome.i18n.getMessage('copied'));
@@ -302,6 +439,7 @@ async function main() {
       try {
         for (const test of tests) {
           if (test.scales && !test.scales.includes(scale)) continue;
+          if (process.env.TEST && !test.name.includes(process.env.TEST)) continue;
           const label = `[${scale}x] ${test.name}`;
           const started = Date.now();
           try {
