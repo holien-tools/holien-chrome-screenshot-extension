@@ -152,20 +152,13 @@ const tests = [
     name: 'boxes drawn on the preview are merged into the copied and downloaded image',
     page: 'long.html',
     mode: 'area',
-    async before(page) {
-      await page.evaluate(() => window.scrollTo({ top: 1000, behavior: 'instant' }));
-      // The screenshot is of the last frame drawn, which has to be the scrolled one.
-      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-      await sleep(200);
-    },
-    select: (page) => drag(page, { x: 40, y: 150 }, { x: 640, y: 500 }),
+    before: scrollForArea,
+    select: selectArea,
     async check({ image, result, scale }) {
       const band = (y) => bandColor(Math.floor((1150 + y) / 250));
-      const boxes = () => result.evaluate(() => document.querySelectorAll('.box').length);
-      const status = result.locator('#box-status');
-      const text = (key, ...subs) =>
-        result.evaluate(([key, subs]) => chrome.i18n.getMessage(key, subs), [key, subs.map(String)]);
-      await status.filter({ hasText: await text('boxesHint') }).waitFor();
+      const shapes = () => result.evaluate(() => document.querySelectorAll('.shape').length);
+      const status = result.locator('#shape-status');
+      await status.filter({ hasText: await text(result, 'annotateHint') }).waitFor();
       assert.equal(await result.locator('#undo').isDisabled(), true, 'undo starts disabled');
 
       // A green, thick box, in image pixels, clear of the band labels.
@@ -173,30 +166,30 @@ const tests = [
       await result.click('.swatch[data-color="#2e9e45"]');
       await result.selectOption('#line-width', '8');
       await dragOnImage(result, green);
-      assert.equal(await boxes(), 1, 'the box is drawn');
-      await status.filter({ hasText: await text('boxCount', 1) }).waitFor();
+      assert.equal(await shapes(), 1, 'the box is drawn');
+      await status.filter({ hasText: await text(result, 'shapeCount', 1) }).waitFor();
 
       // A click is not a box.
       await dragOnImage(result, { x1: 200, y1: 300, x2: 201, y2: 301 });
-      assert.equal(await boxes(), 1, 'a click does not add a box');
+      assert.equal(await shapes(), 1, 'a click does not add a box');
 
       // A second box, selected by clicking its line and deleted.
       await result.click('.swatch[data-color="#e53935"]');
       await dragOnImage(result, { x1: 100, y1: 60, x2: 300, y2: 200 });
-      assert.equal(await boxes(), 2, 'a second box is drawn');
+      assert.equal(await shapes(), 2, 'a second box is drawn');
       await clickOnImage(result, 100 + 2 * scale, 130);
-      assert.equal(await result.locator('.box.selected').count(), 1, 'clicking the line selects the box');
+      assert.equal(await result.locator('.shape.selected').count(), 1, 'clicking the line selects the box');
       await result.keyboard.press('Delete');
-      assert.equal(await boxes(), 1, 'Delete removes the selected box');
+      assert.equal(await shapes(), 1, 'Delete removes the selected box');
       const [left] = await result.evaluate(() =>
-        [...document.querySelectorAll('.box .line')].map((line) => line.getAttribute('stroke')),
+        [...document.querySelectorAll('.shape .line')].map((line) => line.getAttribute('stroke')),
       );
       assert.equal(left, '#2e9e45', 'the green box is the one left');
 
       // Undo takes the green box back, and it's drawn again for the checks.
       await result.click('#undo');
-      assert.equal(await boxes(), 0, 'undo removes the last box');
-      await status.filter({ hasText: await text('boxesHint') }).waitFor();
+      assert.equal(await shapes(), 0, 'undo removes the last box');
+      await status.filter({ hasText: await text(result, 'annotateHint') }).waitFor();
       await result.click('.swatch[data-color="#2e9e45"]');
       await dragOnImage(result, green);
 
@@ -222,13 +215,201 @@ const tests = [
       await result.click('#download');
       const file = await download;
       assert.match(file.suggestedFilename(), /^screenshot_127\.0\.0\.1_\d{8}-\d{6}\.png$/, 'file name');
-      const size = (await fs.stat(await file.path())).size;
-      assert.ok(size > 0, 'the download has content');
+      const bytes = await fs.readFile(await file.path());
+      assert.equal(bytes.subarray(1, 4).toString(), 'PNG', 'the download is a PNG');
 
       await result.click('#clear');
-      assert.equal(await boxes(), 0, 'clear removes every box');
+      assert.equal(await shapes(), 0, 'clear removes every box');
       const original = await readCopy(result, [450]);
       checkColumn(original.columns[0], 1, (y) => band(y / scale));
+    },
+  },
+  {
+    name: 'boxes are moved and resized with the mouse',
+    page: 'long.html',
+    mode: 'area',
+    scales: [1],
+    before: scrollForArea,
+    select: selectArea,
+    async check({ result }) {
+      const box = () =>
+        result.evaluate(() => {
+          const line = document.querySelector('.shape[data-type="box"] .line');
+          const lineWidth = Number(line.getAttribute('stroke-width'));
+          return ['x', 'y', 'width', 'height'].map((name) => Number(line.getAttribute(name)) + (name === 'x' || name === 'y' ? -lineWidth / 2 : lineWidth));
+        });
+      await dragOnImage(result, { x1: 100, y1: 100, x2: 300, y2: 200 });
+      assert.deepEqual(await box(), [100, 100, 200, 100], 'the box is where it was drawn');
+      assert.equal(await result.locator('.handle').count(), 8, 'the new box is selected, with handles');
+
+      // Dragging the line moves it; a drag below the threshold doesn't.
+      await dragOnImage(result, { x1: 150, y1: 101, x2: 200, y2: 131 });
+      assert.deepEqual(await box(), [150, 130, 200, 100], 'the box moved');
+      await dragOnImage(result, { x1: 200, y1: 131, x2: 201, y2: 132 });
+      assert.deepEqual(await box(), [150, 130, 200, 100], 'a click does not move it');
+
+      // The corner and edge handles resize it.
+      await dragHandle(result, 'se', 40, 20);
+      assert.deepEqual(await box(), [150, 130, 240, 120], 'the bottom right corner was dragged');
+      await dragHandle(result, 'w', 30, 0);
+      assert.deepEqual(await box(), [180, 130, 210, 120], 'the left edge was dragged');
+      await dragHandle(result, 'n', 0, -50);
+      assert.deepEqual(await box(), [180, 80, 210, 170], 'the top edge was dragged');
+
+      // Escape takes a drag back.
+      const point = await imagePoint(result, 200, 81);
+      await result.mouse.move(point.x, point.y);
+      await result.mouse.down();
+      await result.mouse.move(point.x + 60, point.y + 60, { steps: 5 });
+      await result.keyboard.press('Escape');
+      await result.mouse.up();
+      assert.deepEqual(await box(), [180, 80, 210, 170], 'Escape cancels the move');
+      assert.equal(await result.locator('.shape').count(), 1, 'still one box');
+    },
+  },
+  {
+    name: 'arrows, text, numbers and mosaics are drawn and merged into the image',
+    page: 'long.html',
+    mode: 'area',
+    before: scrollForArea,
+    select: selectArea,
+    async check({ result, scale }) {
+      const band = (y) => bandColor(Math.floor((1150 + y) / 250));
+      const shapes = (type) => result.locator(`.shape[data-type="${type}"]`);
+      const blue = [0x1e, 0x6f, 0xe0];
+      await result.click('.swatch[data-color="#1e6fe0"]');
+
+      // A horizontal arrow, thick, so its line is a row of pixels.
+      await result.click('.tool[data-tool="arrow"]');
+      await result.selectOption('#line-width', '8');
+      await dragOnImage(result, { x1: 100, y1: 300, x2: 400, y2: 300 });
+      assert.equal(await shapes('arrow').count(), 1, 'the arrow is drawn');
+
+      // Text, typed into the editor and finished with Enter.
+      await result.click('.tool[data-tool="text"]');
+      await clickOnImage(result, 320, 40);
+      const editor = result.locator('.text-editor');
+      await editor.waitFor();
+      await result.keyboard.type('Hi');
+      await result.keyboard.press('Enter');
+      await editor.waitFor({ state: 'detached' });
+      assert.equal(await shapes('text').count(), 1, 'the text is placed');
+      assert.equal(await shapes('text').locator('text').textContent(), 'Hi', 'the text is what was typed');
+      // Typing nothing adds nothing.
+      await clickOnImage(result, 200, 200);
+      await editor.waitFor();
+      await result.keyboard.press('Escape');
+      await editor.waitFor({ state: 'detached' });
+      assert.equal(await shapes('text').count(), 1, 'an empty text is not added');
+
+      // Two numbered markers; deleting the first renumbers the second.
+      await result.click('.tool[data-tool="number"]');
+      await clickOnImage(result, 500, 60);
+      await clickOnImage(result, 500, 300);
+      const numbers = () => shapes('number').locator('text').allTextContents();
+      assert.deepEqual(await numbers(), ['1', '2'], 'markers count up');
+      await clickOnImage(result, 500, 60);
+      await result.keyboard.press('Delete');
+      assert.deepEqual(await numbers(), ['1'], 'the marker left is renumbered');
+      await clickOnImage(result, 500, 60);
+
+      // A mosaic across a band boundary, in blocks of 18 CSS pixels at this line width.
+      const mosaic = { top: 60 * scale, bottom: 140 * scale, block: 18 * scale };
+      await result.click('.tool[data-tool="mosaic"]');
+      await dragOnImage(result, { x1: 20, y1: mosaic.top, x2: 80, y2: mosaic.bottom });
+      assert.equal(await shapes('mosaic').count(), 1, 'the mosaic is drawn');
+      await result.locator('.shape[data-type="mosaic"] image[href^="data:"]').waitFor();
+
+      const copied = await readCopy(result, [250, 500 + 14 * scale, 50]);
+      // The arrow's line runs along y=300 at x=250.
+      checkColumn(copied.columns[0], 1, (y) => (y >= 300 - 4 * scale && y < 300 + 4 * scale ? blue : band(y / scale)));
+      // Beside the digit, the markers are solid blue.
+      const marker = (y, cy) => Math.abs(y - cy) < 8 * scale;
+      checkColumnWhere(copied.columns[1], (y) => marker(y, 300) || marker(y, 60), blue);
+      // The mosaic is blocks of one color, aligned to its top edge. The third
+      // block straddles the band boundary, so it's a mix of both colors.
+      const rows = copied.columns[2].values;
+      for (let y = mosaic.top; y < mosaic.bottom; y++) {
+        const top = mosaic.top + Math.floor((y - mosaic.top) / mosaic.block) * mosaic.block;
+        assert.equal(rows[y], rows[top], `mosaic row ${y} matches the top of its block`);
+      }
+      assert.notEqual(rows[mosaic.top + 2 * mosaic.block], rows[mosaic.top], 'the blocks differ across the band boundary');
+      // The text has solid blue pixels somewhere in its box.
+      const textBox = await result.evaluate(() => {
+        const box = document.querySelector('.shape[data-type="text"] text').getBBox();
+        return { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width), height: Math.round(box.height) };
+      });
+      const hits = await countColor(result, textBox, blue);
+      assert.ok(hits > 10, `the text is drawn in blue (${hits} blue pixels in its box)`);
+      await result.screenshot({ path: path.join(OUT_DIR, `annotated@${scale}x.png`) });
+    },
+  },
+  {
+    name: 'annotations are kept when the result page is reopened',
+    page: 'long.html',
+    mode: 'area',
+    scales: [1],
+    before: scrollForArea,
+    select: selectArea,
+    async check({ result }) {
+      await dragOnImage(result, { x1: 100, y1: 100, x2: 300, y2: 200 });
+      await result.click('.tool[data-tool="number"]');
+      await clickOnImage(result, 400, 100);
+      await sleep(600);
+      await result.reload();
+      await result.waitForSelector('body[data-state="ready"]');
+      const restored = await result.evaluate(() =>
+        [...document.querySelectorAll('.shape')].map((shape) => shape.dataset.type),
+      );
+      assert.deepEqual(restored, ['box', 'number'], 'the shapes are back');
+      assert.equal(await result.locator('#undo').isDisabled(), false, 'the tools know about them');
+      await result.click('#clear');
+      await sleep(600);
+      await result.reload();
+      await result.waitForSelector('body[data-state="ready"]');
+      assert.equal(await result.locator('.shape').count(), 0, 'cleared shapes stay cleared');
+    },
+  },
+  {
+    name: 'downloads as JPEG at the chosen quality',
+    page: 'long.html',
+    mode: 'area',
+    scales: [1],
+    settings: { format: 'png' },
+    before: scrollForArea,
+    select: selectArea,
+    async check({ result, worker }) {
+      const downloadAs = (format) => text(result, 'downloadAs', format);
+      assert.equal(await result.locator('#download').textContent(), await downloadAs('PNG'), 'PNG by default');
+      assert.equal(await result.locator('#quality-field').isHidden(), true, 'no quality for PNG');
+
+      await result.selectOption('#format', 'jpeg');
+      assert.equal(await result.locator('#download').textContent(), await downloadAs('JPEG'), 'the button follows the format');
+      await result.locator('#quality-field:not([hidden])').waitFor();
+      await result.locator('#quality').fill('60');
+      assert.equal(await result.locator('#quality-value').textContent(), '60%', 'the quality is shown');
+
+      const size = async () => {
+        const download = result.waitForEvent('download');
+        await result.click('#download');
+        const file = await download;
+        assert.match(file.suggestedFilename(), /\.jpg$/, 'file name');
+        const bytes = await fs.readFile(await file.path());
+        assert.deepEqual([...bytes.subarray(0, 3)], [0xff, 0xd8, 0xff], 'the download is a JPEG');
+        return bytes.length;
+      };
+      const low = await size();
+      await result.locator('#quality').fill('100');
+      const high = await size();
+      assert.ok(high > low, `quality 100 (${high} bytes) is larger than 60 (${low} bytes)`);
+
+      await sleep(300);
+      const stored = await worker.evaluate(() => chrome.storage.sync.get(['format', 'jpegQuality']));
+      assert.deepEqual(stored, { format: 'jpeg', jpegQuality: 100 }, 'the choice is saved');
+      await result.reload();
+      await result.waitForSelector('body[data-state="ready"]');
+      assert.equal(await result.locator('#format').inputValue(), 'jpeg', 'the format is remembered');
+      assert.equal(await result.locator('#quality').inputValue(), '100', 'the quality is remembered');
     },
   },
   {
@@ -323,6 +504,66 @@ async function drag(page, from, to) {
   await page.mouse.down();
   await page.mouse.move(to.x, to.y, { steps: 5 });
   await page.mouse.up();
+}
+
+async function scrollForArea(page) {
+  await page.evaluate(() => window.scrollTo({ top: 1000, behavior: 'instant' }));
+  // The screenshot is of the last frame drawn, which has to be the scrolled one.
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await sleep(200);
+}
+
+function selectArea(page) {
+  return drag(page, { x: 40, y: 150 }, { x: 640, y: 500 });
+}
+
+function text(result, key, ...subs) {
+  return result.evaluate(([key, subs]) => chrome.i18n.getMessage(key, subs), [key, subs.map(String)]);
+}
+
+// Drags a resize handle of the selected shape by dx, dy image pixels.
+async function dragHandle(result, name, dx, dy) {
+  const handle = result.locator(`.handle[data-handle="${name}"]`);
+  const box = await handle.boundingBox();
+  const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const unit = await result.evaluate(() => {
+    const img = document.querySelector('img.part-image');
+    return img.getBoundingClientRect().width / img.width;
+  });
+  await result.mouse.move(from.x, from.y);
+  await result.mouse.down();
+  await result.mouse.move(from.x + dx * unit, from.y + dy * unit, { steps: 5 });
+  await result.mouse.up();
+}
+
+// Rows where the condition holds must be the color; the others aren't checked.
+function checkColumnWhere(column, where, rgb) {
+  const packed = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
+  const bad = [];
+  for (let y = 0; y < column.values.length; y++) {
+    if (where(y) && column.values[y] !== packed) bad.push(y);
+  }
+  assert.equal(bad.length, 0, `column x=${column.x}: rows ${bad.slice(0, 5)} are not rgb(${rgb})`);
+}
+
+// How many pixels of the copied image in the box are exactly the color.
+async function countColor(result, box, rgb) {
+  return result.evaluate(
+    async ([box, rgb]) => {
+      const [item] = await navigator.clipboard.read();
+      const bitmap = await createImageBitmap(await item.getType('image/png'));
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0);
+      const px = ctx.getImageData(box.x, box.y, box.width, box.height).data;
+      let hits = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i] === rgb[0] && px[i + 1] === rgb[1] && px[i + 2] === rgb[2]) hits++;
+      }
+      return hits;
+    },
+    [box, rgb],
+  );
 }
 
 // Drags on the first image of the result page, in image pixels.
@@ -447,7 +688,8 @@ async function main() {
             console.log(`ok   ${label} (${((Date.now() - started) / 1000).toFixed(1)}s)`);
           } catch (err) {
             failures++;
-            console.log(`FAIL ${label}\n     ${err.message}`);
+            const where = err.stack?.split('\n').find((line) => line.includes('e2e.mjs'))?.trim();
+            console.log(`FAIL ${label}\n     ${err.message}${where ? `\n     ${where}` : ''}`);
           }
         }
       } finally {
@@ -486,6 +728,9 @@ async function runTest(browser, test, scale, baseUrl) {
     await test.select?.(page);
     if (!opened) return null;
     const result = await opened;
+    result.errors = [];
+    result.on('console', (message) => message.type() === 'error' && result.errors.push(message.text()));
+    result.on('pageerror', (err) => result.errors.push(err.message));
     await result.waitForSelector('body[data-state="ready"]');
     return result;
   })();
@@ -500,7 +745,12 @@ async function runTest(browser, test, scale, baseUrl) {
       }
       await result.screenshot({ path: path.join(OUT_DIR, `${name}_result-page.png`) });
     }
-    await test.check({ context, image, page, result, scale });
+    try {
+      await test.check({ context, image, page, result, scale, worker });
+    } catch (err) {
+      if (result?.errors.length) err.message += `\n     result page errors: ${result.errors.join(' | ')}`;
+      throw err;
+    }
   } finally {
     await result?.close();
     await page.close();

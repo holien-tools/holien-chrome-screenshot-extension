@@ -2,7 +2,7 @@
 
 [繁體中文](README.md) | **English**
 
-Click the toolbar button to capture the **entire web page** (including the parts you have to scroll to see) as a PNG image, or **select part of the screen** like the Windows Snipping Tool, then preview it, **draw boxes on it to point things out**, and download or copy it.
+Click the toolbar button to capture the **entire web page** (including the parts you have to scroll to see) as an image, or **select part of the screen** like the Windows Snipping Tool, then preview it, **add boxes, arrows, text, numbered markers and mosaics**, and download it (as PNG or JPEG) or copy it.
 
 ## Install
 
@@ -17,30 +17,30 @@ Click the toolbar button to capture the **entire web page** (including the parts
 2. Click the toolbar button and choose:
    - **Full page**: the button shows the progress (%) while capturing. **Stay on this tab until it finishes.**
    - **Select area**: the screen freezes and dims. Drag with the mouse to select the area to capture, and release to finish. Press Esc to cancel.
-3. When it's done, a new tab opens with a preview. Click **Download PNG** to save it, or **Copy** to paste it straight into a chat or document.
+3. When it's done, a new tab opens with a preview. Add boxes, arrows, text and other annotations if you like, then click **Download** to save it (as PNG or JPEG), or **Copy** to paste it straight into a chat or document.
 
-### Drawing boxes
+### Annotations
 
-**Drag with the mouse** on the image in the preview to draw a box around something, as many as you like. In the toolbar you can:
+You can annotate the image right on the preview page. Pick a tool in the toolbar, then drag or click on the image:
 
-- **Pick a color**: red, green, blue, yellow, orange, black or white, or **Custom** for any color.
-- **Pick a line width**: thin, medium or thick (as it looks on screen, on high-resolution displays too).
-- **Remove boxes**: click a box to select it and press Delete; **Undo** (or Ctrl+Z) takes back the last box; **Clear boxes** removes them all. Press Esc to cancel a box you're drawing.
-
-The boxes are only drawn on the preview until you click **Download PNG** or **Copy**, when they're **merged into the image**. Without boxes, you get the original screenshot. Boxes aren't saved: they're gone when you close the preview.
-
-### Keyboard shortcuts
-
-| Action | Default shortcut |
+| Tool | How |
 | --- | --- |
-| Full page | Alt+Shift+F |
-| Select area | Alt+Shift+S |
+| **Box** | Drag out the area |
+| **Arrow** | Drag from the start to where the arrow should point |
+| **Text** | Click and type; Enter finishes, Shift+Enter starts a new line, Esc cancels. Double-click existing text to change it |
+| **Number** | Click to place a numbered marker. Markers count up in the order they're placed, and renumber when one is removed |
+| **Mosaic** | Drag out the area to pixelate (account names, email addresses, amounts and the like) |
 
-On a Mac, Alt is the Option key. If another extension already uses a key, Chrome doesn't assign it; you can change or set the shortcuts at `chrome://extensions/shortcuts`.
+- **Color**: red, green, blue, yellow, orange, black or white, or **Custom** for any color.
+- **Size**: small, medium or large. It sets the line width, the text size, the marker size and the mosaic block size (as they look on screen, on high-resolution displays too).
+- **Move and resize**: drag an annotation to move it. Click one to select it: boxes, mosaics and arrows then show handles you can drag to resize them or move the arrow's ends.
+- **Remove**: click to select and press Delete; **Undo** (or Ctrl+Z) takes back the last one added; **Clear all** removes them all. Press Esc to cancel a drag.
 
-### Settings
+Annotations are shown on the preview and **merged into the image** when you click **Download** or **Copy**. Without annotations, you get the original screenshot. They're saved in the browser with the screenshot, so they're still there when you close and reopen the preview (only the 3 most recent screenshots are kept).
 
-Click the toolbar button and choose **Settings** (or right-click the button and choose **Options**) to change the most screens a full page capture takes: 50 by default, from 1 to 200. Higher numbers take longer and make more images: on a 4K display, 200 screens take about 3 minutes. With Chrome sync on, the setting follows you to your other computers.
+### Download format
+
+**Format** in the toolbar picks **PNG** (the default, lossless) or **JPEG** (much smaller, better for chats and email). With JPEG, a slider sets the quality, from 50% to 100% (90% by default). The choice is remembered for the next preview. **Copy** always uses PNG, the only image format the clipboard takes.
 
 ## How scrolling is handled in full page captures
 
@@ -73,7 +73,7 @@ When the capture finishes, the scroll position and styles are restored to how th
 
 - `activeTab`: access to the current tab to take the screenshot, only when you click the button or press a shortcut.
 - `scripting`: runs the code that scrolls the page, adjusts its styles and shows the area selection.
-- `storage`: keeps your settings.
+- `storage`: keeps your settings (the screen limit, the download format).
 
 It doesn't need permission to "read all your data on all websites", and it never sends any data over the network. Screenshots stay in your browser.
 
@@ -91,10 +91,10 @@ extension/               ← load this folder in Chrome
                          handles fixed/sticky, scrolls, restores
   content/area-select.js injected into the page: shows the frozen screen for
                          selecting an area
-  lib/settings.js        user settings (the screen limit)
-  lib/store.js           hands screenshots to the preview page via IndexedDB
-  result/                preview, box drawing, download and copy page
-  result/annotate.js     draws boxes on the images and merges them in for download and copy
+  lib/settings.js        user settings (the screen limit, the download format and quality)
+  lib/store.js           hands screenshots to the preview page via IndexedDB, and keeps the annotations
+  result/                preview, annotation, download and copy page
+  result/annotate.js     draws boxes, arrows, text, numbers and mosaics on the images and merges them in on output
   _locales/              English and Traditional Chinese UI text
 tests/
   e2e.mjs                end-to-end tests
@@ -103,7 +103,7 @@ tests/
 
 ### Tests
 
-The tests use Playwright to launch Chromium, load the extension, capture the test pages in `tests/pages` (full page and selected areas), and check the colors of the images row by row. They also draw boxes on the preview and check the copied image. Everything runs at both 1x and 2x display scaling.
+The tests use Playwright to launch Chromium, load the extension, capture the test pages in `tests/pages` (full page and selected areas), and check the colors of the images row by row. They also add, move and resize annotations on the preview, check the copied and downloaded images, and check that the annotations are back after the preview is reopened. Everything runs at both 1x and 2x display scaling.
 
 ```sh
 npm install
