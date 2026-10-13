@@ -103,7 +103,7 @@
     if (state) restore();
     // An area selection still on screen would end up in the screenshots.
     window.__holienAreaSelect?.cancel();
-    state = { overrides: [], fixed: [], target: null, scrollX, scrollY, targetScrollTop: 0 };
+    state = { overrides: [], fixed: [], pinned: new Set(), target: null, scrollX, scrollY, targetScrollTop: 0 };
 
     // Jump instead of animating when scrolling, and keep scrollbars out of the picture.
     for (const el of [document.documentElement, document.body]) {
@@ -112,26 +112,14 @@
       overrideStyle(el, 'scrollbar-width', 'none');
     }
 
-    // Read everything first, then write, so the page is laid out only once.
-    const sticky = [];
     const scrollable = [];
     for (const el of allElements()) {
       const style = getComputedStyle(el);
-      if (style.position === 'sticky') {
-        sticky.push(el);
-      } else if (style.position === 'fixed') {
-        const rect = el.getBoundingClientRect();
-        state.fixed.push({
-          el,
-          atBottom: rect.top + rect.bottom > innerHeight,
-          hidden: false,
-          saved: [saveProp(el, 'opacity'), saveProp(el, 'transition-property')],
-        });
-      }
       if (/auto|scroll|overlay/.test(style.overflowY) && el.scrollHeight > el.clientHeight) {
         scrollable.push(el);
       }
     }
+    findPinned();
 
     const target = findInnerScroller(scrollable);
     if (target) {
@@ -141,17 +129,45 @@
       overrideStyle(target, 'scrollbar-width', 'none');
     }
 
+    // Remembered to tell when the page loads more as it's scrolled (infinite scroll).
+    state.height = (target || rootScroller()).scrollHeight;
+
+    return { title: document.title, url: location.href };
+  }
+
+  // Takes note of elements pinned to the screen (position: fixed or sticky)
+  // that haven't been seen yet. Some pages (Magento's admin, for one) pin a
+  // toolbar with JavaScript only once it's scrolled out of view, so this runs
+  // again before every screen, not just at the start.
+  function findPinned() {
+    // Read everything first, then write, so the page is laid out only once.
+    const sticky = [];
+    let found = false;
+    for (const el of allElements()) {
+      if (state.pinned.has(el)) continue;
+      const style = getComputedStyle(el);
+      if (style.position === 'sticky') {
+        state.pinned.add(el);
+        sticky.push(el);
+      } else if (style.position === 'fixed') {
+        state.pinned.add(el);
+        const rect = el.getBoundingClientRect();
+        state.fixed.push({
+          el,
+          atBottom: rect.top + rect.bottom > innerHeight,
+          hidden: false,
+          saved: [saveProp(el, 'opacity'), saveProp(el, 'transition-property')],
+        });
+        found = true;
+      }
+    }
     // Lay sticky elements out where they sit in the document, instead of
     // pinning them to the top of every screen.
     for (const el of sticky) {
       overrideStyle(el, 'position', 'relative');
       for (const side of ['top', 'right', 'bottom', 'left']) overrideStyle(el, side, 'auto');
     }
-
-    // Remembered to tell when the page loads more as it's scrolled (infinite scroll).
-    state.height = (target || rootScroller()).scrollHeight;
-
-    return { title: document.title, url: location.href };
+    return found || sticky.length > 0;
   }
 
   async function settle() {
@@ -192,7 +208,7 @@
   }
 
   async function showFixed({ top, bottom }) {
-    let changed = false;
+    let changed = findPinned();
     for (const entry of state.fixed) {
       if (setHidden(entry, !(entry.atBottom ? bottom : top))) changed = true;
     }

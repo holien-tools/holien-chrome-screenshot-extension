@@ -23,6 +23,10 @@
       "suggested_key": { "default": "Alt+Shift+F" },
       "description": "__MSG_commandFullPage__"
     },
+    "capture-visible": {
+      "suggested_key": { "default": "Alt+Shift+V" },
+      "description": "__MSG_commandVisible__"
+    },
     "capture-area": {
       "suggested_key": { "default": "Alt+Shift+S" },
       "description": "__MSG_commandArea__"

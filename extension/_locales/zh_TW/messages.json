@@ -3,13 +3,16 @@
     "message": "整頁截圖"
   },
   "extDescription": {
-    "message": "擷取整個網頁（包含需要捲動的部分）或框選的範圍成圖片，下載到電腦或複製使用。"
+    "message": "擷取整個網頁（包含需要捲動的部分）、目前看到的視窗畫面或框選的範圍成圖片，下載到電腦或複製使用。"
   },
   "actionTitle": {
-    "message": "擷取整頁或框選範圍"
+    "message": "擷取整頁、視窗或框選範圍"
   },
   "popupFullPage": {
     "message": "擷取整頁"
+  },
+  "popupVisible": {
+    "message": "擷取視窗"
   },
   "popupArea": {
     "message": "框選範圍"
@@ -52,6 +55,9 @@
   "commandFullPage": {
     "message": "擷取整個網頁"
   },
+  "commandVisible": {
+    "message": "擷取目前看到的視窗畫面"
+  },
   "commandArea": {
     "message": "框選範圍擷取"
   },
@@ -63,6 +69,9 @@
   },
   "areaResultTitle": {
     "message": "框選截圖"
+  },
+  "visibleResultTitle": {
+    "message": "視窗截圖"
   },
   "summary": {
     "message": "$WIDTH$ × $HEIGHT$ 像素 · 擷取於 $TIME$",

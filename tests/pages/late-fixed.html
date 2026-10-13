@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Late fixed bar</title>
+    <style>
+      body { margin: 0; }
+      #slot { height: 40px; }
+      #bar { height: 40px; background: #ff0; }
+      #bar.pinned { position: fixed; top: 0; left: 0; right: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="top"></div>
+    <div id="slot"><div id="bar"></div></div>
+    <div id="rest"></div>
+    <script src="bands.js"></script>
+    <script>
+      // 4 bands, a 40px bar, then 6 more bands: 2540px in total. Like some
+      // admin toolbars, the bar is pinned to the top with JavaScript once it
+      // has been scrolled out of view, so it isn't fixed when the capture
+      // starts.
+      addBands(document.getElementById('top'), 0, 4, 250);
+      addBands(document.getElementById('rest'), 4, 6, 250);
+      const bar = document.getElementById('bar');
+      addEventListener('scroll', () => bar.classList.toggle('pinned', scrollY > 1000));
+    </script>
+  </body>
+</html>

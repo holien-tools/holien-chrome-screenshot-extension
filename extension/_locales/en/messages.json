@@ -3,13 +3,16 @@
     "message": "Full Page Screenshot"
   },
   "extDescription": {
-    "message": "Capture an entire web page, scrolling included, or an area you select as an image, then download or copy it."
+    "message": "Capture the entire web page (including the parts you have to scroll to see), the visible area or a selected part of the screen as an image, then download or copy it."
   },
   "actionTitle": {
-    "message": "Capture the full page or a selected area"
+    "message": "Capture the full page, the visible area or a selected area"
   },
   "popupFullPage": {
     "message": "Full page"
+  },
+  "popupVisible": {
+    "message": "Visible area"
   },
   "popupArea": {
     "message": "Select area"
@@ -52,6 +55,9 @@
   "commandFullPage": {
     "message": "Capture the full page"
   },
+  "commandVisible": {
+    "message": "Capture the visible area"
+  },
   "commandArea": {
     "message": "Select an area to capture"
   },
@@ -63,6 +69,9 @@
   },
   "areaResultTitle": {
     "message": "Area screenshot"
+  },
+  "visibleResultTitle": {
+    "message": "Visible area screenshot"
   },
   "summary": {
     "message": "$WIDTH$ × $HEIGHT$ px · captured $TIME$",

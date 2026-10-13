@@ -63,6 +63,25 @@ const tests = [
     },
   },
   {
+    name: 'a bar the page pins with JavaScript while scrolling appears once',
+    page: 'late-fixed.html',
+    async check({ image, page, scale }) {
+      const total = 2540;
+      assert.equal(image.height, total * scale, 'image is as tall as the page');
+      const expected = (y) => {
+        if (y >= 1000 && y < 1040) return [255, 255, 0]; // the bar, where it sits in the page
+        return bandColor(Math.floor((y < 1000 ? y : y - 40) / 250));
+      };
+      for (const column of image.columns) checkColumn(column, scale, expected);
+      const after = await page.evaluate(() => ({
+        scrollY,
+        pinned: document.getElementById('bar').classList.contains('pinned'),
+        style: document.getElementById('bar').getAttribute('style') || null,
+      }));
+      assert.deepEqual(after, { scrollY: 0, pinned: false, style: null }, `the bar is back to normal: ${JSON.stringify(after)}`);
+    },
+  },
+  {
     name: 'app layout that scrolls an inner element',
     page: 'app.html',
     async before(page) {
@@ -121,6 +140,37 @@ const tests = [
       await startCapture(browser, page, 'area');
     },
     check: (args) => tests[0].check(args),
+  },
+  {
+    name: 'visible area captured from the popup',
+    page: 'long.html',
+    mode: 'visible',
+    viaPopup: true,
+    before: scrollForArea,
+    columns: (width, scale) => [10, Math.floor(width / 2), width - 40 * scale],
+    async check({ image, page, result, scale }) {
+      const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+      assert.equal(image.width, viewport.width * scale, 'image is as wide as the viewport');
+      assert.equal(image.height, viewport.height * scale, 'image is as tall as the viewport');
+      const expected = (y) => {
+        if (y < 60) return BLACK; // fixed header
+        if (y >= viewport.height - 40) return MAGENTA; // fixed footer
+        return bandColor(Math.floor((1000 + y) / 250));
+      };
+      for (const column of image.columns) checkColumn(column, scale, expected);
+      assert.equal(await page.evaluate(() => scrollY), 1000, 'the page did not scroll');
+      const title = await result.evaluate(() => chrome.i18n.getMessage('visibleResultTitle'));
+      assert.ok((await result.title()).endsWith(title), 'result page is titled as a visible area screenshot');
+    },
+  },
+  {
+    name: 'visible area capture on browser pages shows an error',
+    page: 'chrome://version',
+    mode: 'visible',
+    scales: [1],
+    async check({ result }) {
+      await result.locator('#error-view[data-error="restricted"]').waitFor();
+    },
   },
   {
     name: 'area selected from the popup',
@@ -739,7 +789,7 @@ async function runTest(browser, test, scale, baseUrl) {
     let image;
     if (await result?.locator('#capture-view').isVisible()) {
       image = await readImage(result, test.columns ?? ((width) => [10, Math.floor(width / 2), width - 2]), scale);
-      const name = `${path.basename(test.page, '.html')}${test.mode === 'area' ? '-area' : ''}@${scale}x`;
+      const name = `${path.basename(test.page, '.html')}${test.mode ? `-${test.mode}` : ''}@${scale}x`;
       for (const [i, png] of image.pngs.entries()) {
         await fs.writeFile(path.join(OUT_DIR, `${name}_${i + 1}.png`), Buffer.from(png, 'base64'));
       }

@@ -19,7 +19,7 @@ class CaptureError extends Error {
   }
 }
 
-const COMMAND_MODES = { 'capture-full-page': 'full', 'capture-area': 'area' };
+const COMMAND_MODES = { 'capture-full-page': 'full', 'capture-visible': 'visible', 'capture-area': 'area' };
 
 chrome.commands.onCommand.addListener((command, tab) => {
   if (tab && command in COMMAND_MODES) startCapture(tab, COMMAND_MODES[command]);
@@ -36,7 +36,48 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 function startCapture(tab, mode) {
-  return mode === 'area' ? selectArea(tab) : captureFullPage(tab);
+  if (mode === 'area') return selectArea(tab);
+  if (mode === 'visible') return captureViewport(tab);
+  return captureFullPage(tab);
+}
+
+// Captures what's on screen right now: the page's viewport, without the
+// browser's own toolbars.
+async function captureViewport(tab) {
+  if (busyTabs.has(tab.id)) return;
+  busyTabs.add(tab.id);
+  try {
+    let page;
+    try {
+      // An area selection still on screen would end up in the screenshot.
+      [{ result: page }] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          window.__holienAreaSelect?.cancel();
+          return { title: document.title, url: location.href, width: innerWidth, height: innerHeight };
+        },
+      });
+    } catch (err) {
+      throw new CaptureError('restricted', err.message);
+    }
+    const image = await captureVisible(tab);
+    const rect = { x: 0, y: 0, width: page.width, height: page.height };
+    const id = await saveCapture({
+      mode: 'visible',
+      title: page.title,
+      url: page.url,
+      createdAt: Date.now(),
+      screens: 1,
+      stoppedEarly: null,
+      ...(await crop(image, rect, page.width)),
+    });
+    await openResult(tab, { id });
+  } catch (err) {
+    console.error('Viewport capture failed:', err);
+    await openResult(tab, { error: err.code || 'failed', detail: err.message });
+  } finally {
+    busyTabs.delete(tab.id);
+  }
 }
 
 async function captureFullPage(tab) {
