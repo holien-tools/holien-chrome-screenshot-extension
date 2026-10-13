@@ -63,7 +63,7 @@ Click the toolbar button and choose **Settings** (or right-click the button and 
 Chrome can only capture what's currently visible, so the extension:
 
 - Starts at the top of the page, scrolls one screen at a time taking a screenshot each time, then stitches all the screens together by scroll position.
-- **Fixed elements**: headers appear only in the first screen, and elements fixed to the bottom (such as cookie banners and floating buttons) appear only in the last screen, so they aren't repeated in the image. Some pages (Magento's admin, for one) pin a toolbar with JavaScript only once it's scrolled out of view, so the check runs again before every screen.
+- **Fixed elements**: headers and sidebars appear only in the first screen (a sidebar taller than the window is cut off at its bottom, as on screen), and elements fixed to the bottom (such as cookie banners and floating buttons) appear only in the last screen, so they aren't repeated in the image. Some pages (Magento's admin, for one) pin a toolbar with JavaScript only once it's scrolled out of view, so the check runs again before every screen.
 - **Sticky elements**: temporarily switched back to normal layout while capturing, so they appear only in their original position instead of sticking to the top of every screen.
 - **Smooth scrolling**: temporarily turned off while capturing, so screens aren't captured mid-animation.
 - **Scrollbars**: temporarily hidden while capturing, so they don't appear in the image.

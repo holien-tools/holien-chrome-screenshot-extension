@@ -154,7 +154,10 @@
         const rect = el.getBoundingClientRect();
         state.fixed.push({
           el,
-          atBottom: rect.top + rect.bottom > innerHeight,
+          // Pinned to the bottom edge: cookie bars, floating buttons. Anything
+          // starting at the top edge belongs to the first screen, even a
+          // sidebar so tall that most of it hangs below the window.
+          atBottom: rect.top > 0 && rect.top + rect.bottom > innerHeight,
           hidden: false,
           saved: [saveProp(el, 'opacity'), saveProp(el, 'transition-property')],
         });

@@ -63,16 +63,20 @@ const tests = [
     },
   },
   {
-    name: 'a bar the page pins with JavaScript while scrolling appears once',
+    name: 'a bar the page pins with JavaScript while scrolling appears once, a tall sidebar on the first screen',
     page: 'late-fixed.html',
     async check({ image, page, scale }) {
       const total = 2540;
       assert.equal(image.height, total * scale, 'image is as tall as the page');
+      const viewportHeight = await page.evaluate(() => innerHeight);
       const expected = (y) => {
         if (y >= 1000 && y < 1040) return [255, 255, 0]; // the bar, where it sits in the page
         return bandColor(Math.floor((y < 1000 ? y : y - 40) / 250));
       };
-      for (const column of image.columns) checkColumn(column, scale, expected);
+      // The sidebar is taller than the window, so it starts at the top edge
+      // and is cut off at the bottom of the first screen, as on screen.
+      const sidebar = (y) => (y < viewportHeight ? [255, 0, 0] : expected(y));
+      for (const column of image.columns) checkColumn(column, scale, column.x < 60 * scale ? sidebar : expected);
       const after = await page.evaluate(() => ({
         scrollY,
         pinned: document.getElementById('bar').classList.contains('pinned'),
