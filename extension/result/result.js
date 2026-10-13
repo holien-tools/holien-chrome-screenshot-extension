@@ -43,7 +43,8 @@ async function main() {
 
 function showCapture(id, capture, settings) {
   const name = capture.title || capture.url;
-  document.title = `${name} – ${msg(capture.mode === 'area' ? 'areaResultTitle' : 'resultTitle')}`;
+  const titles = { area: 'areaResultTitle', visible: 'visibleResultTitle' };
+  document.title = `${name} – ${msg(titles[capture.mode] ?? 'resultTitle')}`;
   $('#page-title').textContent = name;
   const link = $('#page-url');
   link.textContent = capture.url;

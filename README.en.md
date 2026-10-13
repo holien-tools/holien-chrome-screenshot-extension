@@ -2,7 +2,7 @@
 
 [繁體中文](README.md) | **English**
 
-Click the toolbar button to capture the **entire web page** (including the parts you have to scroll to see) as an image, or **select part of the screen** like the Windows Snipping Tool, then preview it, **add boxes, arrows, text, numbered markers and mosaics**, and download it (as PNG or JPEG) or copy it.
+Click the toolbar button to capture the **entire web page** (including the parts you have to scroll to see) as an image, capture **just what's on screen**, or **select part of the screen** like the Windows Snipping Tool, then preview it, **add boxes, arrows, text, numbered markers and mosaics**, and download it (as PNG or JPEG) or copy it.
 
 ## Install
 
@@ -16,6 +16,7 @@ Click the toolbar button to capture the **entire web page** (including the parts
 1. Open the page you want to capture.
 2. Click the toolbar button and choose:
    - **Full page**: the button shows the progress (%) while capturing. **Stay on this tab until it finishes.**
+   - **Visible area**: captures just what's on screen, without the address bar and browser toolbars. Nothing scrolls.
    - **Select area**: the screen freezes and dims. Drag with the mouse to select the area to capture, and release to finish. Press Esc to cancel.
 3. When it's done, a new tab opens with a preview. Add boxes, arrows, text and other annotations if you like, then click **Download** to save it (as PNG or JPEG), or **Copy** to paste it straight into a chat or document.
 
@@ -42,12 +43,27 @@ Annotations are shown on the preview and **merged into the image** when you clic
 
 **Format** in the toolbar picks **PNG** (the default, lossless) or **JPEG** (much smaller, better for chats and email). With JPEG, a slider sets the quality, from 50% to 100% (90% by default). The choice is remembered for the next preview. **Copy** always uses PNG, the only image format the clipboard takes.
 
+### Keyboard shortcuts
+
+| Action | Default shortcut |
+| --- | --- |
+| Full page | Alt+Shift+F |
+| Visible area | Alt+Shift+V |
+| Select area | Alt+Shift+S |
+
+On a Mac, Alt is the Option key. If another extension already uses a key, Chrome doesn't assign it; you can change or set the shortcuts at `chrome://extensions/shortcuts`.
+
+### Settings
+
+Click the toolbar button and choose **Settings** (or right-click the button and choose **Options**) to change the most screens a full page capture takes: 50 by default, from 1 to 200. Higher numbers take longer and make more images: on a 4K display, 200 screens take about 3 minutes. With Chrome sync on, the setting follows you to your other computers.
+
+
 ## How scrolling is handled in full page captures
 
 Chrome can only capture what's currently visible, so the extension:
 
 - Starts at the top of the page, scrolls one screen at a time taking a screenshot each time, then stitches all the screens together by scroll position.
-- **Fixed elements**: headers appear only in the first screen, and elements fixed to the bottom (such as cookie banners and floating buttons) appear only in the last screen, so they aren't repeated in the image.
+- **Fixed elements**: headers appear only in the first screen, and elements fixed to the bottom (such as cookie banners and floating buttons) appear only in the last screen, so they aren't repeated in the image. Some pages (Magento's admin, for one) pin a toolbar with JavaScript only once it's scrolled out of view, so the check runs again before every screen.
 - **Sticky elements**: temporarily switched back to normal layout while capturing, so they appear only in their original position instead of sticking to the top of every screen.
 - **Smooth scrolling**: temporarily turned off while capturing, so screens aren't captured mid-animation.
 - **Scrollbars**: temporarily hidden while capturing, so they don't appear in the image.
@@ -83,7 +99,7 @@ It doesn't need permission to "read all your data on all websites", and it never
 extension/               ← load this folder in Chrome
   manifest.json
   background.js          capture flow: full page (scroll, screenshot, stitch,
-                         split) and area (screenshot, crop)
+                         split), visible area (screenshot) and area (screenshot, crop)
   popup/                 menu shown when the toolbar button is clicked
   options/               settings page
   content/capture-helper.js
@@ -103,7 +119,7 @@ tests/
 
 ### Tests
 
-The tests use Playwright to launch Chromium, load the extension, capture the test pages in `tests/pages` (full page and selected areas), and check the colors of the images row by row. They also add, move and resize annotations on the preview, check the copied and downloaded images, and check that the annotations are back after the preview is reopened. Everything runs at both 1x and 2x display scaling.
+The tests use Playwright to launch Chromium, load the extension, capture the test pages in `tests/pages` (full page, visible area and selected areas), and check the colors of the images row by row. They also add, move and resize annotations on the preview, check the copied and downloaded images, and check that the annotations are back after the preview is reopened. Everything runs at both 1x and 2x display scaling.
 
 ```sh
 npm install

@@ -1,4 +1,4 @@
-const COMMANDS = { full: 'capture-full-page', area: 'capture-area' };
+const COMMANDS = { full: 'capture-full-page', visible: 'capture-visible', area: 'capture-area' };
 
 const msg = (key) => chrome.i18n.getMessage(key) || key;
 
