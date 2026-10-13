@@ -79,9 +79,6 @@
       "height": { "content": "$2" }
     }
   },
-  "download": {
-    "message": "下載 PNG"
-  },
   "copy": {
     "message": "複製"
   },
@@ -97,17 +94,32 @@
       "count": { "content": "$1" }
     }
   },
-  "boxesLabel": {
-    "message": "標示框線"
+  "annotateLabel": {
+    "message": "標註"
   },
-  "boxesHint": {
-    "message": "在圖片上拖曳就能畫出框線，下載或複製時會自動合併進圖片。"
+  "annotateHint": {
+    "message": "選一個工具，在圖片上拖曳或點一下。標註會在下載或複製時自動合併進圖片，並跟截圖一起保存。"
   },
-  "boxCount": {
-    "message": "已畫 $COUNT$ 個框線，下載或複製時會自動合併進圖片。點一下框線再按 Delete 可以刪除。",
+  "shapeCount": {
+    "message": "已有 $COUNT$ 個標註，下載或複製時會自動合併進圖片。拖曳可以移動，點一下再按 Delete 可以刪除。",
     "placeholders": {
       "count": { "content": "$1" }
     }
+  },
+  "toolBox": {
+    "message": "框線"
+  },
+  "toolArrow": {
+    "message": "箭頭"
+  },
+  "toolText": {
+    "message": "文字"
+  },
+  "toolNumber": {
+    "message": "編號"
+  },
+  "toolMosaic": {
+    "message": "馬賽克"
   },
   "customColor": {
     "message": "自訂"
@@ -134,22 +146,34 @@
     "message": "白色"
   },
   "lineWidth": {
-    "message": "線條"
+    "message": "大小"
   },
   "lineThin": {
-    "message": "細"
+    "message": "小"
   },
   "lineMedium": {
     "message": "中"
   },
   "lineThick": {
-    "message": "粗"
+    "message": "大"
   },
   "undo": {
     "message": "復原"
   },
-  "clearBoxes": {
-    "message": "清除框線"
+  "clearShapes": {
+    "message": "全部清除"
+  },
+  "format": {
+    "message": "格式"
+  },
+  "quality": {
+    "message": "品質"
+  },
+  "downloadAs": {
+    "message": "下載 $FORMAT$",
+    "placeholders": {
+      "format": { "content": "$1" }
+    }
   },
   "partLabel": {
     "message": "第 $INDEX$ 張，共 $TOTAL$ 張",

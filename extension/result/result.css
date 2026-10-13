@@ -184,7 +184,50 @@ body {
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.2), 0 4px 16px rgb(0 0 0 / 0.08);
 }
 
-/* Box drawing tools */
+/* Export format */
+
+.export {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.export label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.export select {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.quality input {
+  width: 90px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.quality output {
+  min-width: 3.2em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.quality[hidden] {
+  display: none;
+}
+
+/* Annotation tools */
 
 .tools {
   display: flex;
@@ -199,6 +242,17 @@ body {
 
 .tools-label {
   font-weight: 600;
+}
+
+.tool-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.tool-buttons .tool[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
 
 .swatches {
@@ -268,7 +322,7 @@ body {
   cursor: pointer;
 }
 
-.tool:hover:not(:disabled) {
+.tool:hover:not(:disabled):not([aria-checked='true']) {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -284,7 +338,17 @@ body {
   color: var(--muted);
 }
 
-.boxes {
+/* The overlay */
+
+body[data-tool='text'] .part-canvas {
+  cursor: text;
+}
+
+body[data-tool='number'] .part-canvas {
+  cursor: copy;
+}
+
+.shapes {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -292,33 +356,100 @@ body {
   overflow: visible;
 }
 
-.boxes rect {
+.shapes .hit {
   fill: none;
-}
-
-.boxes .hit {
   stroke: transparent;
   pointer-events: stroke;
 }
 
-.boxes .line {
+.shapes .hit.fill {
+  fill: transparent;
+  pointer-events: fill;
+}
+
+.shapes .line {
+  fill: none;
+}
+
+.shapes .shape > :not(.hit) {
   pointer-events: none;
 }
 
-.box.drawing .hit {
+.shapes .shape.drawing .hit,
+.shapes .shape.editing {
   pointer-events: none;
 }
 
-.box:hover .hit {
+.shapes .shape.editing {
+  visibility: hidden;
+}
+
+.shapes .shape:not(.drawing) {
+  cursor: move;
+}
+
+.shapes .shape:hover .hit {
   stroke: rgb(37 99 235 / 0.15);
 }
 
-.box.selected .hit {
+.shapes .shape:hover .hit.fill {
+  fill: rgb(37 99 235 / 0.1);
+}
+
+.shapes .shape.selected .hit {
   stroke: rgb(37 99 235 / 0.35);
 }
 
-.box:not(.drawing) {
-  cursor: pointer;
+.shapes .shape.selected .hit.fill {
+  fill: rgb(37 99 235 / 0.2);
+}
+
+.shapes .handle {
+  fill: #fff;
+  stroke: var(--accent);
+  pointer-events: fill;
+}
+
+.shapes .handle[data-handle='n'],
+.shapes .handle[data-handle='s'] {
+  cursor: ns-resize;
+}
+
+.shapes .handle[data-handle='e'],
+.shapes .handle[data-handle='w'] {
+  cursor: ew-resize;
+}
+
+.shapes .handle[data-handle='nw'],
+.shapes .handle[data-handle='se'] {
+  cursor: nwse-resize;
+}
+
+.shapes .handle[data-handle='ne'],
+.shapes .handle[data-handle='sw'] {
+  cursor: nesw-resize;
+}
+
+.shapes .handle[data-handle='start'],
+.shapes .handle[data-handle='end'] {
+  cursor: crosshair;
+}
+
+.text-editor {
+  position: absolute;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 1px dashed var(--accent);
+  background: rgb(255 255 255 / 0.6);
+  font-family: system-ui, -apple-system, 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei',
+    'Noto Sans TC', sans-serif;
+  font-weight: bold;
+  white-space: pre;
+  overflow: hidden;
+  resize: none;
+  cursor: text;
 }
 
 .error {

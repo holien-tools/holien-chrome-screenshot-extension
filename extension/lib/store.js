@@ -44,6 +44,20 @@ export async function saveCapture(capture) {
   }
 }
 
+// Saves the annotations drawn on a capture, to show again when it's reopened.
+export async function saveAnnotations(id, annotations) {
+  const db = await openDb();
+  try {
+    const transaction = db.transaction(STORE, 'readwrite');
+    const store = transaction.objectStore(STORE);
+    const capture = await done(store.get(id));
+    if (capture) store.put({ ...capture, annotations }, id);
+    await committed(transaction);
+  } finally {
+    db.close();
+  }
+}
+
 export async function loadCapture(id) {
   const db = await openDb();
   try {

@@ -79,9 +79,6 @@
       "height": { "content": "$2" }
     }
   },
-  "download": {
-    "message": "Download PNG"
-  },
   "copy": {
     "message": "Copy"
   },
@@ -97,17 +94,32 @@
       "count": { "content": "$1" }
     }
   },
-  "boxesLabel": {
-    "message": "Draw boxes"
+  "annotateLabel": {
+    "message": "Annotate"
   },
-  "boxesHint": {
-    "message": "Drag on the image to draw a box. Boxes are merged into the image when you download or copy it."
+  "annotateHint": {
+    "message": "Pick a tool and drag or click on the image. Annotations are merged into the image when you download or copy it, and kept with the screenshot."
   },
-  "boxCount": {
-    "message": "$COUNT$ boxes drawn. They're merged into the image when you download or copy it. Click a box and press Delete to remove it.",
+  "shapeCount": {
+    "message": "$COUNT$ annotations. They're merged into the image when you download or copy it. Drag one to move it, click it and press Delete to remove it.",
     "placeholders": {
       "count": { "content": "$1" }
     }
+  },
+  "toolBox": {
+    "message": "Box"
+  },
+  "toolArrow": {
+    "message": "Arrow"
+  },
+  "toolText": {
+    "message": "Text"
+  },
+  "toolNumber": {
+    "message": "Number"
+  },
+  "toolMosaic": {
+    "message": "Mosaic"
   },
   "customColor": {
     "message": "Custom"
@@ -134,22 +146,34 @@
     "message": "White"
   },
   "lineWidth": {
-    "message": "Line"
+    "message": "Size"
   },
   "lineThin": {
-    "message": "Thin"
+    "message": "Small"
   },
   "lineMedium": {
     "message": "Medium"
   },
   "lineThick": {
-    "message": "Thick"
+    "message": "Large"
   },
   "undo": {
     "message": "Undo"
   },
-  "clearBoxes": {
-    "message": "Clear boxes"
+  "clearShapes": {
+    "message": "Clear all"
+  },
+  "format": {
+    "message": "Format"
+  },
+  "quality": {
+    "message": "Quality"
+  },
+  "downloadAs": {
+    "message": "Download $FORMAT$",
+    "placeholders": {
+      "format": { "content": "$1" }
+    }
   },
   "partLabel": {
     "message": "Part $INDEX$ of $TOTAL$",
