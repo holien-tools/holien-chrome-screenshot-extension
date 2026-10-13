@@ -8,9 +8,12 @@
       #slot { height: 40px; }
       #bar { height: 40px; background: #ff0; }
       #bar.pinned { position: fixed; top: 0; left: 0; right: 0; }
+      /* A sidebar taller than the window, like an admin menu. */
+      #side { position: fixed; top: 0; left: 0; width: 60px; height: 1200px; background: #f00; }
     </style>
   </head>
   <body>
+    <div id="side"></div>
     <div id="top"></div>
     <div id="slot"><div id="bar"></div></div>
     <div id="rest"></div>
