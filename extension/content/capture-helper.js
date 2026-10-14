@@ -206,7 +206,10 @@
       // Whether the page has loaded more since the capture started.
       grew: scroller.scrollHeight > state.height,
       rect: captureRect(target),
+      // Whether an element inside the page scrolls, rather than the window.
+      inner: Boolean(target),
       viewportWidth: innerWidth,
+      viewportHeight: innerHeight,
     };
   }
 

@@ -93,17 +93,27 @@ const tests = [
     },
     columns: (width, scale) => [10, Math.floor(width / 2), width - 40 * scale],
     async check({ image, page, scale }) {
-      const main = await page.evaluate(() => {
-        const el = document.querySelector('main');
-        return { width: el.getBoundingClientRect().width, scrollTop: el.scrollTop };
-      });
-      assert.equal(image.width, main.width * scale, 'image is as wide as the scroll container');
-      assert.equal(image.height, 4500 * scale, 'image is as tall as the scroll container content');
-      const band = (y) => bandColor(Math.floor(y / 300));
-      checkColumn(image.columns[0], scale, band);
+      const { viewport, main } = await page.evaluate(() => ({
+        viewport: { width: innerWidth, height: innerHeight },
+        main: { scrollTop: document.querySelector('main').scrollTop },
+      }));
+      const header = 56;
+      const footer = 30;
+      const bottom = header + 4500;
+      assert.equal(image.width, viewport.width * scale, 'image is as wide as the window');
+      assert.equal(image.height, (bottom + footer) * scale, 'image holds the header, the scroll container content and the footer');
+      const HEADER = [20, 20, 20];
+      const NAV = [200, 200, 200];
+      // The header is above the scroll container, the footer below it.
+      const around = (y) => (y < header ? HEADER : y >= bottom ? CYAN : null);
+      const band = (y) => around(y) ?? bandColor(Math.floor((y - header) / 300));
+      // The sidebar beside the scroll container is on the first screen only.
+      checkColumn(image.columns[0], scale, (y) => around(y) ?? (y < viewport.height - footer ? NAV : WHITE));
       checkColumn(image.columns[1], scale, band);
-      // The floating button is fixed to the bottom, so it shows up once, at the end.
-      checkColumn(image.columns[2], scale, (y) => (y >= 4500 - 64 && y < 4500 - 16 ? MAGENTA : band(y)));
+      // The floating button is fixed to the bottom of the window, so it shows
+      // up once, at the end, over the last of the content and the footer.
+      const fab = (y) => y >= bottom + footer - 64 && y < bottom + footer - 16;
+      checkColumn(image.columns[2], scale, (y) => (fab(y) ? MAGENTA : band(y)));
       assert.equal(main.scrollTop, 1234, 'scroll position is restored');
     },
   },

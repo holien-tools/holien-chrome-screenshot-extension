@@ -68,7 +68,7 @@ Chrome can only capture what's currently visible, so the extension:
 - **Smooth scrolling**: temporarily turned off while capturing, so screens aren't captured mid-animation.
 - **Scrollbars**: temporarily hidden while capturing, so they don't appear in the image.
 - **Lazy-loaded images**: after each scroll, it waits for the images on screen to load (up to 1.5 seconds) before taking the screenshot.
-- **Pages that scroll an inner element**: on some pages (app-style layouts like Gmail or Notion), a section inside the page scrolls rather than the whole window. In that case it automatically finds the main scrolling section and captures its full content.
+- **Pages that scroll an inner element**: on some pages (app-style layouts like Gmail, Notion or NetSuite), a section inside the page scrolls rather than the whole window. In that case it automatically finds the main scrolling section and captures its full content. The header, sidebar and toolbars above and beside it stay where they are on the first screen, and whatever sits below it goes at the end of the image.
 - **Pages that load more content as you scroll** (infinite scroll, such as the Yahoo home page or social media feeds): it keeps capturing the newly loaded content, **stopping at the number of screens in the settings (50 by default)**, and the preview page tells you.
 
 When the capture finishes, the scroll position and styles are restored to how they were.
