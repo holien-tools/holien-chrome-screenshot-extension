@@ -161,31 +161,41 @@ async function captureTab(tab) {
     title: page.title,
     url: page.url,
     createdAt: Date.now(),
-    screens: capture.frames.length,
+    screens: capture.screens,
     stoppedEarly: capture.stoppedEarly,
     ...image,
   });
 }
 
 // Scrolls through the page one screen at a time and captures each screen,
-// up to maxScreens of them.
+// up to maxScreens of them. Each frame is a crop of a screenshot (CSS pixels)
+// and where it goes in the stitched image (left, top, in CSS pixels).
+//
+// When an element inside the page scrolls rather than the window, the first
+// frame keeps everything above and beside it (the page's header, sidebar and
+// toolbars), the following frames hold just the scrolled content, and
+// whatever sits below the scrolling element comes last.
 async function captureFrames(tab, maxScreens) {
   const frames = [];
+  let screens = 0;
   // Set when the capture stops before the end: 'infiniteScroll' or 'tooLong'.
   let stoppedEarly = null;
   // Whether the page has loaded more content while being scrolled.
   let grew = false;
   let lastCaptureAt = 0;
   let y = 0;
+  let base = null;
+  let lastPos = 0;
   for (;;) {
     const view = await callHelper(tab.id, 'scrollTo', y);
     grew ||= view.grew;
     // The page refused to scroll any further.
-    if (frames.length && view.pos <= frames.at(-1).pos) break;
+    if (base && view.pos <= lastPos) break;
+    base ??= view;
 
-    const isFirst = frames.length === 0;
+    const isFirst = screens === 0;
     let isLast = view.pos >= view.maxPos - 1;
-    if (!isLast && frames.length + 1 >= maxScreens) {
+    if (!isLast && screens + 1 >= maxScreens) {
       isLast = true;
       stoppedEarly = grew ? 'infiniteScroll' : 'tooLong';
     }
@@ -195,29 +205,63 @@ async function captureFrames(tab, maxScreens) {
     await sleep(lastCaptureAt + MIN_CAPTURE_INTERVAL_MS - Date.now());
     const dataUrl = await captureVisible(tab);
     lastCaptureAt = Date.now();
-    const frame = await toFrame(await (await fetch(dataUrl)).blob(), view);
-    frames.push(frame);
+    const blob = await (await fetch(dataUrl)).blob();
+    const bitmap = await createImageBitmap(blob);
+    const frameOf = (crop, place) => toFrame(blob, bitmap, view, crop, place);
+    const offset = view.pos - base.pos;
+    const { rect } = view;
+    let step;
+    if (view.inner) {
+      const bottom = rect.y + rect.height;
+      if (isFirst) {
+        const frame = frameOf({ x: 0, y: 0, width: view.viewportWidth, height: bottom }, { left: 0, top: 0 });
+        frames.push(frame);
+        step = frame.height - rect.y;
+      } else {
+        const frame = frameOf(rect, { left: rect.x, top: base.rect.y + offset });
+        frames.push(frame);
+        step = frame.height;
+      }
+      if (isLast && view.viewportHeight > bottom) {
+        frames.push(
+          frameOf(
+            { x: 0, y: bottom, width: view.viewportWidth, height: view.viewportHeight - bottom },
+            { left: 0, top: base.rect.y + offset + rect.height },
+          ),
+        );
+      }
+    } else {
+      const frame = frameOf(rect, { left: 0, top: offset });
+      frames.push(frame);
+      step = frame.height;
+    }
+    bitmap.close();
+    screens++;
+    lastPos = view.pos;
     if (isLast) break;
 
     // Whichever comes first: the end of the page or the screen limit.
-    const progress = Math.max(
-      frames.length / maxScreens,
-      (frame.pos + frame.height) / (view.maxPos + frame.height),
-    );
+    const progress = Math.max(screens / maxScreens, (view.pos + step) / (view.maxPos + step));
     await setBadge(tab.id, `${Math.min(99, Math.round(progress * 100))}%`);
-    y = frame.pos + frame.height;
+    y = view.pos + step;
   }
-  return { frames, stoppedEarly };
+  return { frames, screens, stoppedEarly };
 }
 
-// Records which part of a captured screen shows the scrolled content (in CSS
-// pixels), clipped to what the screenshot actually contains.
-async function toFrame(blob, { pos, rect, viewportWidth }) {
-  const bitmap = await createImageBitmap(blob);
+// A crop of a screenshot (CSS pixels, clipped to what the screenshot actually
+// contains) and where it goes in the stitched image.
+function toFrame(blob, bitmap, { viewportWidth }, crop, { left, top }) {
   const scale = bitmap.width / viewportWidth;
-  const height = Math.min(rect.height, bitmap.height / scale - rect.y);
-  bitmap.close();
-  return { blob, pos, scale, x: rect.x, y: rect.y, width: rect.width, height };
+  return {
+    blob,
+    scale,
+    x: crop.x,
+    y: crop.y,
+    width: Math.min(crop.width, bitmap.width / scale - crop.x),
+    height: Math.min(crop.height, bitmap.height / scale - crop.y),
+    left,
+    top,
+  };
 }
 
 async function captureVisible(tab) {
@@ -243,28 +287,31 @@ async function assertTabActive(tabId) {
   if (!active) throw new CaptureError('tabHidden');
 }
 
-// Crops each screen to the scrolled area and draws it at its scroll offset.
+// Draws each frame's crop where it belongs in the image.
 async function stitch(frames) {
   const [first] = frames;
-  const offsetOf = (frame) => Math.round((frame.pos - first.pos) * first.scale);
-  const last = frames.at(-1);
-  const width = Math.round(first.width * first.scale);
-  const height = offsetOf(last) + Math.round(last.height * last.scale);
+  const width = Math.round(Math.max(...frames.map((f) => f.left + f.width)) * first.scale);
+  const height = Math.round(Math.max(...frames.map((f) => f.top + f.height)) * first.scale);
 
   const parts = [];
   for (let top = 0; top < height; top += MAX_PART_HEIGHT) {
     const partHeight = Math.min(MAX_PART_HEIGHT, height - top);
     const canvas = new OffscreenCanvas(width, partHeight);
     const ctx = canvas.getContext('2d');
+    // Shows through beside the scrolled content of pages that scroll an inner element.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, partHeight);
     for (const frame of frames) {
-      const dy = offsetOf(frame) - top;
-      const sh = Math.round(frame.height * frame.scale);
+      const { scale } = frame;
+      const dx = Math.round(frame.left * scale);
+      const dy = Math.round(frame.top * scale) - top;
+      const sh = Math.round(frame.height * scale);
       if (dy >= partHeight || dy + sh <= 0) continue;
       const bitmap = await createImageBitmap(frame.blob);
-      const sx = Math.round(frame.x * frame.scale);
-      const sy = Math.round(frame.y * frame.scale);
-      const sw = Math.min(Math.round(frame.width * frame.scale), bitmap.width - sx);
-      ctx.drawImage(bitmap, sx, sy, sw, sh, 0, dy, sw, sh);
+      const sx = Math.round(frame.x * scale);
+      const sy = Math.round(frame.y * scale);
+      const sw = Math.min(Math.round(frame.width * scale), bitmap.width - sx);
+      ctx.drawImage(bitmap, sx, sy, sw, sh, dx, dy, sw, sh);
       bitmap.close();
     }
     parts.push({
