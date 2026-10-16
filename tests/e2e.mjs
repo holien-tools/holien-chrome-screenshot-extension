@@ -118,6 +118,68 @@ const tests = [
     },
   },
   {
+    name: 'app layout inside a same-origin frame',
+    page: 'frame-app.html',
+    async before(page) {
+      await page.frames()[1].evaluate(() => document.querySelector('main').scrollTo({ top: 1234, behavior: 'instant' }));
+    },
+    columns: (width, scale) => [10, Math.floor(width / 2), width - 40 * scale],
+    async check({ image, page, scale }) {
+      const frame = page.frames()[1];
+      const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+      const bar = 50;
+      const header = bar + 56;
+      const footer = 30;
+      const bottom = header + 4500;
+      assert.equal(image.width, viewport.width * scale, 'image is as wide as the window');
+      assert.equal(image.height, (bottom + footer) * scale, 'image holds the bar, the header, the content and the footer');
+      const BAR = [51, 51, 51];
+      const HEADER = [20, 20, 20];
+      const NAV = [200, 200, 200];
+      const around = (y) => (y < bar ? BAR : y < header ? HEADER : y >= bottom ? CYAN : null);
+      const band = (y) => around(y) ?? bandColor(Math.floor((y - header) / 300));
+      checkColumn(image.columns[0], scale, (y) => around(y) ?? (y < viewport.height - footer ? NAV : WHITE));
+      checkColumn(image.columns[1], scale, band);
+      const fab = (y) => y >= bottom + footer - 64 && y < bottom + footer - 16;
+      checkColumn(image.columns[2], scale, (y) => (fab(y) ? MAGENTA : band(y)));
+      const after = await frame.evaluate(() => ({
+        scrollTop: document.querySelector('main').scrollTop,
+        styles: [...document.querySelectorAll('html, body, main, #fab')].map((el) => el.getAttribute('style')).filter(Boolean),
+      }));
+      assert.deepEqual(after, { scrollTop: 1234, styles: [] }, 'the frame is restored');
+    },
+  },
+  {
+    name: 'long page inside a same-origin frame',
+    page: 'frame-long.html',
+    async before(page) {
+      await page.frames()[1].evaluate(() => window.scrollTo({ top: 3000, behavior: 'instant' }));
+    },
+    async check({ image, page, scale }) {
+      const bar = 50;
+      const total = bar + 5050;
+      const viewport = await page.evaluate(() => innerWidth);
+      assert.equal(image.width, viewport * scale, 'image is as wide as the window');
+      assert.equal(image.height, total * scale, 'image holds the bar and the whole framed page');
+      const expected = (y) => {
+        if (y < bar) return [51, 51, 51];
+        const p = y - bar; // in the framed page
+        if (p < 60) return BLACK; // fixed header, first screen only
+        if (p >= 5050 - 40) return MAGENTA; // fixed footer, last screen only
+        if (p >= 2500 && p < 2550) return CYAN; // sticky bar, where it sits in the page
+        return bandColor(Math.floor((p < 2500 ? p : p - 50) / 250));
+      };
+      for (const column of image.columns) checkColumn(column, scale, expected);
+      const after = await page.frames()[1].evaluate(() => ({
+        scrollY,
+        styles: [...document.querySelectorAll('html, body, #header, #footer, #sticky')]
+          .map((el) => el.getAttribute('style'))
+          .filter(Boolean),
+      }));
+      assert.deepEqual(after, { scrollY: 3000, styles: [] }, 'the framed page is restored');
+    },
+  },
+  {
     name: 'page shorter than the window',
     page: 'short.html',
     async check({ image, page, scale }) {
