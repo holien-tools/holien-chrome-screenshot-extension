@@ -21,13 +21,66 @@
   const nextFrame = () =>
     Promise.race([new Promise((resolve) => requestAnimationFrame(() => resolve())), sleep(100)]);
 
-  const rootScroller = () => document.scrollingElement || document.documentElement;
+  const rootScrollerOf = (doc) => doc.scrollingElement || doc.documentElement;
+  const rootScroller = () => rootScrollerOf(document);
+  const windowOf = (el) => el.ownerDocument.defaultView;
 
+  // The document inside a frame, when it's same-origin and can be looked into.
+  // Many consoles (AWS, for one) put the page that actually scrolls in one.
+  function frameDocument(el) {
+    if (el.localName !== 'iframe' && el.localName !== 'frame') return null;
+    try {
+      return el.contentDocument;
+    } catch {
+      return null;
+    }
+  }
+
+  // Every element of the page, including those in shadow roots and in
+  // same-origin frames.
   function* allElements(root = document) {
     for (const el of root.querySelectorAll('*')) {
       yield el;
       if (el.shadowRoot) yield* allElements(el.shadowRoot);
+      const doc = frameDocument(el);
+      if (doc) yield* allElements(doc);
     }
+  }
+
+  // Where a window's viewport sits in the top window (CSS pixels of the top window).
+  function frameOffset(win) {
+    let x = 0;
+    let y = 0;
+    for (let w = win; w !== window; w = w.parent) {
+      const frame = w.frameElement;
+      if (!frame) break;
+      const r = frame.getBoundingClientRect();
+      x += r.left + frame.clientLeft;
+      y += r.top + frame.clientTop;
+    }
+    return { x, y };
+  }
+
+  // An element's rect in the top window's coordinates.
+  function topRect(el) {
+    const r = el.getBoundingClientRect();
+    const { x, y } = frameOffset(windowOf(el));
+    return { left: r.left + x, top: r.top + y, right: r.right + x, bottom: r.bottom + y };
+  }
+
+  // The part of the top window's viewport a window's content can show in.
+  function visibleBox(win) {
+    const box = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+    for (let w = win; w !== window; w = w.parent) {
+      const frame = w.frameElement;
+      if (!frame) break;
+      const r = topRect(frame);
+      box.left = Math.max(box.left, r.left + frame.clientLeft);
+      box.top = Math.max(box.top, r.top + frame.clientTop);
+      box.right = Math.min(box.right, r.left + frame.clientLeft + frame.clientWidth);
+      box.bottom = Math.min(box.bottom, r.top + frame.clientTop + frame.clientHeight);
+    }
+    return box;
   }
 
   function visibleArea(rect) {
@@ -71,7 +124,8 @@
     let bestArea = innerWidth * innerHeight * MIN_INNER_SCROLLER_AREA;
     for (const el of candidates) {
       if (el.scrollHeight - el.clientHeight <= Math.max(windowRange, 1)) continue;
-      const area = visibleArea(el.getBoundingClientRect());
+      const rect = captureRect(el);
+      const area = Math.max(0, rect.width) * Math.max(0, rect.height);
       if (area > bestArea) {
         best = el;
         bestArea = area;
@@ -80,22 +134,32 @@
     return best;
   }
 
-  // The part of the viewport (CSS pixels) that shows the scrolled content.
+  // The part of the viewport (CSS pixels of the top window) that shows the
+  // scrolled content.
   function captureRect(target) {
     if (!target) {
       const root = rootScroller();
       return { x: 0, y: 0, width: root.clientWidth, height: root.clientHeight };
     }
-    const r = target.getBoundingClientRect();
-    const left = r.left + target.clientLeft;
-    const top = r.top + target.clientTop;
-    const x = Math.max(0, left);
-    const y = Math.max(0, top);
+    const win = windowOf(target);
+    let left;
+    let top;
+    if (target === rootScrollerOf(target.ownerDocument)) {
+      // A frame's own document scrolls: its content shows in the whole frame.
+      ({ x: left, y: top } = frameOffset(win));
+    } else {
+      const r = topRect(target);
+      left = r.left + target.clientLeft;
+      top = r.top + target.clientTop;
+    }
+    const box = visibleBox(win);
+    const x = Math.max(box.left, left);
+    const y = Math.max(box.top, top);
     return {
       x,
       y,
-      width: Math.min(innerWidth, left + target.clientWidth) - x,
-      height: Math.min(innerHeight, top + target.clientHeight) - y,
+      width: Math.min(box.right, left + target.clientWidth) - x,
+      height: Math.min(box.bottom, top + target.clientHeight) - y,
     };
   }
 
@@ -114,10 +178,14 @@
 
     const scrollable = [];
     for (const el of allElements()) {
-      const style = getComputedStyle(el);
+      const style = windowOf(el).getComputedStyle(el);
       if (/auto|scroll|overlay/.test(style.overflowY) && el.scrollHeight > el.clientHeight) {
         scrollable.push(el);
       }
+      // A same-origin frame whose own document scrolls.
+      const doc = frameDocument(el);
+      const root = doc && rootScrollerOf(doc);
+      if (root && root.scrollHeight > root.clientHeight) scrollable.push(root);
     }
     findPinned();
 
@@ -127,6 +195,13 @@
       state.targetScrollTop = target.scrollTop;
       overrideStyle(target, 'scroll-behavior', 'auto');
       overrideStyle(target, 'scrollbar-width', 'none');
+      if (target.ownerDocument !== document) {
+        for (const el of [target.ownerDocument.documentElement, target.ownerDocument.body]) {
+          if (!el) continue;
+          overrideStyle(el, 'scroll-behavior', 'auto');
+          overrideStyle(el, 'scrollbar-width', 'none');
+        }
+      }
     }
 
     // Remembered to tell when the page loads more as it's scrolled (infinite scroll).
@@ -145,19 +220,21 @@
     let found = false;
     for (const el of allElements()) {
       if (state.pinned.has(el)) continue;
-      const style = getComputedStyle(el);
+      const win = windowOf(el);
+      const style = win.getComputedStyle(el);
       if (style.position === 'sticky') {
         state.pinned.add(el);
         sticky.push(el);
       } else if (style.position === 'fixed') {
         state.pinned.add(el);
+        // Fixed elements in a frame are pinned to the frame's edges.
         const rect = el.getBoundingClientRect();
         state.fixed.push({
           el,
           // Pinned to the bottom edge: cookie bars, floating buttons. Anything
           // starting at the top edge belongs to the first screen, even a
           // sidebar so tall that most of it hangs below the window.
-          atBottom: rect.top > 0 && rect.top + rect.bottom > innerHeight,
+          atBottom: rect.top > 0 && rect.top + rect.bottom > win.innerHeight,
           hidden: false,
           saved: [saveProp(el, 'opacity'), saveProp(el, 'transition-property')],
         });
@@ -176,9 +253,10 @@
   async function settle() {
     await nextFrame();
     await nextFrame();
-    const loading = [...document.images].filter(
-      (img) => !img.complete && visibleArea(img.getBoundingClientRect()) > 0,
-    );
+    const docs = new Set([document, state.target?.ownerDocument].filter(Boolean));
+    const loading = [...docs]
+      .flatMap((doc) => [...doc.images])
+      .filter((img) => !img.complete && visibleArea(topRect(img)) > 0);
     if (!loading.length) return;
     const loaded = loading.map(
       (img) =>

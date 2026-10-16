@@ -68,7 +68,7 @@ Chrome can only capture what's currently visible, so the extension:
 - **Smooth scrolling**: temporarily turned off while capturing, so screens aren't captured mid-animation.
 - **Scrollbars**: temporarily hidden while capturing, so they don't appear in the image.
 - **Lazy-loaded images**: after each scroll, it waits for the images on screen to load (up to 1.5 seconds) before taking the screenshot.
-- **Pages that scroll an inner element**: on some pages (app-style layouts like Gmail, Notion or NetSuite), a section inside the page scrolls rather than the whole window. In that case it automatically finds the main scrolling section and captures its full content. The header, sidebar and toolbars above and beside it stay where they are on the first screen, and whatever sits below it goes at the end of the image.
+- **Pages that scroll an inner element**: on some pages (app-style layouts like Gmail, Notion or NetSuite), a section inside the page scrolls rather than the whole window. In that case it automatically finds the main scrolling section and captures its full content. The header, sidebar and toolbars above and beside it stay where they are on the first screen, and whatever sits below it goes at the end of the image. A scrolling section inside a **same-origin iframe** (the AWS console, for one) is found too, and fixed and sticky elements in the frame are handled the same way.
 - **Pages that load more content as you scroll** (infinite scroll, such as the Yahoo home page or social media feeds): it keeps capturing the newly loaded content, **stopping at the number of screens in the settings (50 by default)**, and the preview page tells you.
 
 When the capture finishes, the scroll position and styles are restored to how they were.
@@ -82,6 +82,7 @@ When the capture finishes, the scroll position and styles are restored to how th
 - **Pages that can't be captured**: Chrome doesn't let extensions access browser pages starting with `chrome://`, the Chrome Web Store, or some built-in viewers.
 - **Local files** (`file://`): turn on "Allow access to file URLs" in the extension's details on `chrome://extensions`.
 - Only vertical scrolling is captured. If the page also scrolls horizontally, only the currently visible width is captured.
+- **Cross-origin iframes**: browsers don't let extensions reach into iframes from other domains, so if the part that scrolls is in one, only the visible screen is captured.
 - Capture speed is limited by Chrome (at most 2 screenshots per second), so each screen takes about 0.5 seconds or more, and a full 50 screens takes 30 seconds or more.
 - Only the 3 most recent screenshots are kept, so download them from the preview page promptly.
 
